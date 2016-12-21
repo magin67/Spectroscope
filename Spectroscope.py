@@ -10,7 +10,7 @@ from numpy import linalg as LA
 import matplotlib
 matplotlib.use('TkAgg')
 
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt, mpld3
 import matplotlib.tri as tri
 
 from matplotlib.widgets import Slider, Button #, RadioButtons
@@ -155,10 +155,10 @@ class ShowSpectr(DataSpectr):
         self.SetPlots()
         #fig, axes = plt.subplots(ncols=2, nrows=2) #,, sharex=sharex, sharey=sharey, subplot_kw=kw kw={'xticks': [], 'yticks': []} squeeze=True,   
         #self.ax.set_projection('lambert')
-        plt.subplots_adjust(left=0.0, right=1.0, bottom=0, top=1.0) #, wspace = 0.1, hspace = 0.1
         #self.ax.set_autoscale_on(True)
         #self.ax.autoscale_view()
         #self.ax.autoscale_view(tight=None, scalex=True, scaley=True)
+        plt.subplots_adjust(left=0.0, right=1.0, bottom=0, top=1.0) #, wspace = 0.1, hspace = 0.1
 
     def UpdateSpectr(self, ax, vX, vY, vSize, vColor):
         #self.fig.clear()
@@ -172,9 +172,20 @@ class ShowSpectr(DataSpectr):
             ax.scatter(vX, vY, s=vSize, c=vColor, marker=self.mark_style, cmap=cmap, alpha=self.alpha) #, norm=None, vmin=None, vmax=None, linewidths=None, verts=None, edgecolors=None
         else: # triangulation
             triang = tri.Triangulation(vX, vY)
+            if self.useVectorMarksize: # Mask off unwanted triangles.
+                xmid = vX[triang.triangles].mean(axis=1)
+                ymid = vY[triang.triangles].mean(axis=1)
+                lim = ((self.iMarksize+5)/len(self.vDataZ)/4)**2 #self.vSize*self.vSize *(self.iMarksize+1)
+                
+                if self.inverseMarksize:
+                    mask = NP.where(xmid*xmid + ymid*ymid <= lim, 1, 0)
+                else:
+                    mask = NP.where(xmid*xmid + ymid*ymid > lim, 1, 0)
+                triang.set_mask(mask)
+
             if self.PlotType == 'Web':
-                ax.triplot(triang, marker=self.mark_style, ms=2**(self.msize), markerfacecolor='blue', alpha=self.alpha) # color=vColor, cmap=self.cmap,
-            else: # PlotType == 'Mosaic'
+                ax.triplot(triang, marker=self.mark_style, ms=2**(self.msize), markerfacecolor='blue', linestyle='-', alpha=self.alpha) # color=vColor, cmap=self.cmap,
+            elif self.PlotType == 'Mosaic': # 'Web' and 'Mosaic' can be shown together 
                 ax.tripcolor(triang, self.vColor, shading='flat', cmap=cmap, alpha=self.alpha) #shading='gouraud' 
         
         ax.figure.canvas.draw()
@@ -231,7 +242,7 @@ class ShowSpectr(DataSpectr):
         self.ShowSp()
 
     def SetAlpha(self, val=0):
-        self.alpha = float(val)
+        self.alpha = val
         self.ShowSp()
         
     def SetData(self, show=False):
@@ -246,32 +257,48 @@ class ShowSpectr(DataSpectr):
         self.ShowSp()
             
     def ChangeDistortion(self, val=0):
-        self.distortion = float(val)
+        self.distortion = val
         self.SetData(True) 
 
     def ChangeDegree(self, val=0):
-        self.degree = float(val)
+        self.degree = val
         self.SetData(True)
-        
-    def __init__(self, Symm=4, Size=4, distortion=-0.04, degree=1, error=0.00001, msize=3):
-        DataSpectr.__init__(self, Symm=Symm, Size=Size, distortion=distortion, degree=degree, error=error) 
 
-        self.distortionRange = [-0.06, 0.06] 
-        self.degreeRange = [0.01, 2.01]
-        self.iSpectr, self.iColor, self.iMarksize = 0, 0, 0
+    def dictDefaultValues(self):
+        return {'Symm': 6, 'Size': 10, 'distortion': -0.04, 'degree': 1, 'error': 0.00001,
+                'distortionRange': [-0.06, 0.06], 'degreeRange': [0.01, 2.01],
+                'iSpectr': 0, 'iColor': 0, 'iMarksize': 0,
+                'NumPlots': 1, 'PlotType': 'Points',
+                'cmap': 'hsv', 'inverseColor': False, 'useVectorColor': True, 'alpha': 0.5,
+                'msize': 2, 'mark_style': 'o', 'useVectorMarksize': False, 'inverseMarksize': False
+                }
+
+    def Spectr2Dict(self):
+        dictSp = self.dictDefaultValues() 
+        for key in dictSp.keys():
+            try: dictSp[key] = getattr(self, key) #dictSp[key] = self.__getattr__(key)
+            except: print('Spectr2Dict(): invalid attribute name: ' + key)
+        return dictSp
         
-        self.NumPlots = 1 # один спектр. Можно также выводить 2 и 4 спектра одновременно.
-        self.PlotType = 'Points'
-        self.cmap = 'hsv'
-        self.inverseColor = False
-        self.useVectorColor = True
-        self.alpha=0.5
-        self.msize = msize
-        self.mark_style = 'o'
-        self.useVectorMarksize = False
-        self.inverseMarksize = False
-        self.IniCanvas()
+    def LoadFromDict(self, Dict=None, ini=False):
+        dictSp = self.dictDefaultValues()
+        if Dict is not None:
+            dictSp.update(Dict)
+        
+        DataSpectr.__init__(self, Symm=dictSp['Symm'], Size=dictSp['Size'], distortion=dictSp['distortion'], degree=dictSp['degree'], error=dictSp['error'])
+        for key, value in dictSp.items():
+            try: self.__setattr__(key, value)
+            except: print('LoadFromDict(): invalid attribute name: ' + key)
+
+        if ini: 
+            self.IniCanvas()
+        else:
+            self.SetPlots()
+        
         self.SetForm(False)
+            
+    def __init__(self, dictAttr = None):
+        self.LoadFromDict(dictAttr, ini=True)
 
 ###
 
@@ -486,13 +513,20 @@ class ControlWidget(object):
             self.lblCmap.configure(text=cmap)
             self.shSpectr.ShowSp()
             
-        def SetVColor(val=0):
-            self.shSpectr.indUpdColor(val)
-            self.chkVectorColor.configure(text="Vector: " + str(int(self.scColor.get()+1)))
+        def SetVColor(val=0, ini=False):
+            iColor = int(float(val))
+            if not ini:
+                self.shSpectr.indUpdColor(iColor)
+            self.chkVectorColor.configure(text="Vector: " + str(iColor + 1))
             
         def InverseColor():
             self.shSpectr.inverseColor = inverseColor.get()
             self.shSpectr.ShowSp()
+            
+        def SetAlpha(val=0, ini=False):
+            if not ini:
+                self.shSpectr.SetAlpha(float(val))
+            self.lblAlpha.configure(text="Alpha: " + str(round(float(val), 2)))
     
         rowControl = self.AddLabel(rowControl, "Color map", colsp=1)
         
@@ -502,10 +536,8 @@ class ControlWidget(object):
         rowControl = PlaceWidget(self.chkInverseColor, rowControl, col=1, stick='w') 
         
         cmap = self.shSpectr.cmap
-        
         self.lblCmap = ttk.Label(self.frControl, text=cmap)
         PlaceWidget(self.lblCmap, rowControl)
-        
         vColorMap = mColorMap()
         indCMap = vColorMap.index(cmap) 
         self.scColorMap = ttk.Scale(self.frControl, orient='horizontal', length=self.colWidth2, from_=0, to=len(vColorMap)-1, value=indCMap, command=ChangeColorMap)
@@ -513,15 +545,19 @@ class ControlWidget(object):
     
         useVectorColor = tk.IntVar()
         useVectorColor.set(True)
-        self.chkVectorColor = ttk.Checkbutton(self.frControl, text="Vector: 1", variable=useVectorColor, onvalue=True, offvalue=False, command=CheckVectorColor)
+        self.chkVectorColor = ttk.Checkbutton(self.frControl, variable=useVectorColor, onvalue=True, offvalue=False, command=CheckVectorColor)
         rowControl = PlaceWidget(self.chkVectorColor, rowControl, col=0, stick='ew') 
         
-        self.scColor = ttk.Scale(self.frControl, orient='horizontal', length=self.colWidth2, from_=0, to=self.shSpectr.numZ-1, value=0, command=SetVColor)
-        rowControl = PlaceWidget(self.scColor, rowControl, col=1, stick='ne') 
+        self.scColor = ttk.Scale(self.frControl, orient='horizontal', length=self.colWidth2, from_=0, to=self.shSpectr.numZ-1, value=self.shSpectr.iColor, command=SetVColor)
+        rowControl = PlaceWidget(self.scColor, rowControl, col=1, stick='ne')
+        SetVColor(val=self.shSpectr.iColor, ini=True) 
     
-        rowControl = self.AddLabel(rowControl, "Saturation", self.lblColor, 1)
-        self.scAlpha = ttk.Scale(self.frControl, orient='horizontal', length=self.colWidth2, from_=0.1, to=1, value=0.5, command=self.shSpectr.SetAlpha)
-        rowControl = PlaceWidget(self.scAlpha, rowControl, col=1, stick='ne') 
+        self.lblAlpha = ttk.Label(self.frControl)
+        PlaceWidget(self.lblAlpha, rowControl)
+        #rowControl = self.AddLabel(rowControl, "Saturation", self.lblColor, 1)
+        self.scAlpha = ttk.Scale(self.frControl, orient='horizontal', length=self.colWidth2, from_=0.1, to=1, value=self.shSpectr.alpha, command=SetAlpha)
+        rowControl = PlaceWidget(self.scAlpha, rowControl, col=1, stick='ne')
+        SetAlpha(self.scAlpha.get(), True) 
     
         return self.AddLabel(rowControl)
 
@@ -538,9 +574,11 @@ class ControlWidget(object):
             self.shSpectr.ChangeMarksize(float(val))
             SetMarksizeLabel()
             
-        def SetVmarksize(val=0):
-            self.shSpectr.SetMarksize(val)
-            self.chkMarkSize.configure(text="Vector: " + str(int(self.scVMarksize.get()+1)))
+        def SetVmarksize(val=0, ini=False):
+            ms = float(val)
+            if not ini:
+                self.shSpectr.SetMarksize(ms)
+            self.chkMarkSize.configure(text="Vector: " + str(int(ms+1)))
     
         def CheckMarksize():
             self.shSpectr.useVectorMarksize = useVectorMarksize.get()
@@ -554,7 +592,7 @@ class ControlWidget(object):
         
         vsMarkStyle = sorted(list(dicMarkStyle().keys()))
         sMarkStyle = tk.StringVar(self.frControl)
-        self.omMarkStyle = ttk.OptionMenu(self.frControl, sMarkStyle, "circle", *vsMarkStyle, command=ChangeMarkform) #sMarkStyle,  
+        self.omMarkStyle = ttk.OptionMenu(self.frControl, sMarkStyle, "circle", *vsMarkStyle, command=ChangeMarkform)  
         rowControl = PlaceWidget(self.omMarkStyle, rowControl, col=1, stick='w') 
 
         self.lblMarksize = ttk.Label(self.frControl)
@@ -566,11 +604,12 @@ class ControlWidget(object):
     
         useVectorMarksize = tk.BooleanVar()
         useVectorMarksize.set(False)
-        self.chkMarkSize = ttk.Checkbutton(self.frControl, text="Vector: 1", variable=useVectorMarksize, onvalue=True, offvalue=False, command=CheckMarksize)
+        self.chkMarkSize = ttk.Checkbutton(self.frControl, variable=useVectorMarksize, onvalue=True, offvalue=False, command=CheckMarksize)
         rowControl = PlaceWidget(self.chkMarkSize, rowControl, col=0, stick='ew') 
         
-        self.scVMarksize = ttk.Scale(self.frControl, orient='horizontal', length=100, from_=0, to=self.shSpectr.numZ-1, value=0, command=SetVmarksize)
-        rowControl = PlaceWidget(self.scVMarksize, rowControl, col=1, stick='ew') 
+        self.scVMarksize = ttk.Scale(self.frControl, orient='horizontal', length=100, from_=0, to=self.shSpectr.numZ-1, value=self.shSpectr.iMarksize, command=SetVmarksize)
+        rowControl = PlaceWidget(self.scVMarksize, rowControl, col=1, stick='ew')
+        SetVmarksize(val=self.shSpectr.iMarksize, ini=True)
 
         inverseMarksize = tk.BooleanVar()
         inverseMarksize.set(False)
@@ -578,8 +617,51 @@ class ControlWidget(object):
         rowControl = PlaceWidget(self.chkInverseMarksize, rowControl, col=0, stick='wn') 
         
         return rowControl
+
+    def UpdateControlWidgets(self):
+        # Инициализация панели управления
+        self.lblColor, self.colWidth2 = 'black', 140
+        try: self.frControl.destroy()
+        except: a=1
+        self.frControl = ttk.Frame(self.root, height=2, borderwidth=10, relief='sunken') #bg='green', relief: flat, groove, raised, ridge, solid, sunken
+        self.frControl.grid(row=0, column=1, sticky='nse')
         
-    def SetMenuWidget(self, root):
+        rowControl = self.SetBaseWidgets(0)
+        rowControl = self.SetNumPlotsWidgets(rowControl)
+        rowControl = self.SetPlotWidgets(rowControl)
+        rowControl = self.SetFunctionWidgets(rowControl)
+        rowControl = self.SetColorWidgets(rowControl)
+        rowControl = self.SetMarkerWidgets(rowControl)
+        
+    def SetMenuWidget(self):
+        def NewSpectr():
+            self.shSpectr.LoadFromDict()
+            self.UpdateControlWidgets()
+        
+        def OpenFromDict():
+            options = {}
+            options['filetypes'] = [('NPY', '.npy'), ('*', '.*')] #('json', '.json'), 
+            options['defaultextension'] = '.npy'
+            options['title'] = 'Choose file'
+            filelist = filedialog.askopenfiles(**options)
+            if filelist is None: return
+            file = filelist[0] 
+            dictSpectr = NP.load(file.name).item()
+            self.shSpectr.LoadFromDict(dictSpectr)
+            self.UpdateControlWidgets()
+            file.close()
+
+        def SaveDict():
+            options = {}
+            options['filetypes'] = [('NPY', '.npy')] #, ('json', '.json')
+            options['defaultextension'] = '.npy'
+            options['initialfile'] = 'mySpectr'
+            options['title'] = 'Choose file name'
+            file = filedialog.asksaveasfile(**options)
+            if file is None: return
+            NP.save(file.name, self.shSpectr.Spectr2Dict()) 
+            file.close()
+
         def Image2File():
             options = {}
             options['filetypes'] = [('png', '.png'), ('pdf', '.pdf'), ('svg', '.svg')] #png, pdf, ps, eps, svg  # [('all files', '.*'), ('text files', '.txt')]
@@ -593,7 +675,7 @@ class ControlWidget(object):
             #filename = filedialog.asksaveasfilename(**options) ## defaultextension, filetypes, initialdir, initialfile, multiple, message, parent, title
             if file is None: return
             ftype = file.name[(file.name.index('.')+1):]
-            fig = self.shSpectr.ax.figure
+            fig = self.shSpectr.fig
             fig.savefig(file.name, format=ftype, transparent=True)
             file.close()
 
@@ -601,13 +683,13 @@ class ControlWidget(object):
             root.quit()     # stops mainloop
             root.destroy()  # this is necessary on Windows to prevent
         
-        menuSpectr = tk.Menu(root) #создается объект Меню на главном окне
-        root.config(menu=menuSpectr) #окно конфигурируется с указанием меню для него
+        menuSpectr = tk.Menu(self.root) #создается объект Меню на главном окне
+        self.root.config(menu=menuSpectr) #окно конфигурируется с указанием меню для него
  
         fm = tk.Menu(menuSpectr, tearoff=0) # стандартные операции
-        fm.add_command(label="New")
-        fm.add_command(label="Open...")
-        fm.add_command(label="Save...")
+        fm.add_command(label="New", command=NewSpectr)
+        fm.add_command(label="Open...", command=OpenFromDict)
+        fm.add_command(label="Save...", command=SaveDict)
         fm.add_command(label="Save as picture...", command=Image2File)
         fm.add_separator()
         fm.add_command(label="Exit", command=_quit)
@@ -618,36 +700,28 @@ class ControlWidget(object):
         hm.add_command(label="About") 
         menuSpectr.add_cascade(label="Help", menu=hm)
 
-
     def __init__(self, root, shSpectr):
         self.shSpectr = shSpectr
-        fig = shSpectr.fig
+        self.root = root 
+        
         ## Полотно для вывода
-        self.canvas = FigureCanvasTkAgg(fig, master=root)
+        self.canvas = FigureCanvasTkAgg(shSpectr.fig, master=self.root)
         self.canvas.get_tk_widget().grid(row=0, column=0, sticky='nswe')
         self.canvas.show()
 
-        self.SetMenuWidget(root)
+        self.SetMenuWidget()
             
-        ## Панель элементов управления
-        self.frControl = ttk.Frame(root, height=2, borderwidth=10, relief='sunken') #bg='green', relief: flat, groove, raised, ridge, solid, sunken
-        self.frControl.grid(row=0, column=1, sticky='nse')
-
-        self.lblColor, self.colWidth2 = 'black', 140
-        rowControl = self.SetBaseWidgets(0)
-        rowControl = self.SetNumPlotsWidgets(rowControl)
-        rowControl = self.SetPlotWidgets(rowControl)
-        rowControl = self.SetFunctionWidgets(rowControl)
-        rowControl = self.SetColorWidgets(rowControl)
-        rowControl = self.SetMarkerWidgets(rowControl)
+        self.UpdateControlWidgets()
 
 def main():
     root = tk.Tk()
-    root.wm_title("Spectroscope 2D (v0.3)")
+    root.wm_title("Spectroscope 2D (v0.31)")
     root.rowconfigure(0, weight=1)
     root.columnconfigure(0, weight=1)
 
-    shSpectr = ShowSpectr(Symm=6, Size=10, distortion=-0.04, degree=1, error=0.00001, msize=2)
+    shSpectr = ShowSpectr()
+    
+    #print(shSpectr.Spectr2Dict())
     
     ctrWidgets = ControlWidget(root, shSpectr)
 
@@ -658,6 +732,7 @@ def main():
     tk.mainloop()
 
 main()
+
 
 # TODO:
 # * Сохранение спектра в файл (параметры генерации), запрос на сохранение при модификации, восстановление при открытии программы
