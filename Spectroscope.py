@@ -1,311 +1,26 @@
 # -*- coding:utf-8 -*-
 #!/usr/bin/env python
-""" Визуализация спектров решеток.
+""" Визуализация спектров. Управление
 Начало: ноябрь, 2016
-Редактирован: 16.12.2016
+Редактирован: 22.12.2016
 """
 import numpy as NP
-from numpy import linalg as LA
 
-import matplotlib
-matplotlib.use('TkAgg')
-
-import matplotlib.pyplot as plt, mpld3
-import matplotlib.tri as tri
-
-from matplotlib.widgets import Slider, Button #, RadioButtons
-import matplotlib.markers as Markers
+import SpectrData as SD
+import Geometry as Geo
 
 import tkinter as tk
 from tkinter import ttk
 import tkinter.filedialog as filedialog 
  
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
-# implement the default mpl key bindings
-from matplotlib.backend_bases import key_press_handler
-from matplotlib.figure import Figure
-
-import Geometry as Geo
-
-def Val2Val(val, rangeFrom = [0, 100], rangeTo=[0, 1]):
-    # Приведение числа из одного диапазона к другому - Normalisation
-    # val - число из диапазона rangeFrom.
-    # rangeTo - диапазон, к которому надо привести
-    relval = (val-rangeFrom[0])/(rangeFrom[1]-rangeFrom[0])
-    return rangeTo[0] + relval*(rangeTo[1] - rangeTo[0])  
-
-def mR2G(mR):
-    # Преобразование матрицы резистенсов в матрицу Грина.
-    # Или, что тоже самое, - матрицы квадратов расстояний в матрицу корреляции
-    # G = -(eL R eL)/2
-    N = len(mR)
-    eL = NP.eye(N) - NP.ones(N)/N
-    return NP.dot(NP.dot(eL, mR), eL)/(-2.)
-
-class DataSpectr(object):
-    '''Класс данных спектра'''
-    
-    def Spectr2Projections(self, sVal, mVector):
-        '''Получаем вырожденные 2D-проекции спектра'''
-        self.vIndex = [] # индексы вырожденных спектров
-        self.vS = [] # собственные числа вырожденных спектров
-        self.vDataX, self.vDataY = [], [] # собственные функции вырожденных спектров
-        self.vDataZ = [] # собственные функции невырожденных спектров
-         
-        curS = sVal[0],
-        NumDims = len(sVal)
-        for i in range(1, NumDims):
-            sV = sVal[i]
-            if abs(sV) < 2*self.error: continue # исключаем шум около ноля
-            if abs(sV - curS) < self.error:
-                self.vIndex.append(i-1)
-                self.vS.append(sV)
-                vX, vY, cL = Geo.RotateData(mVector[i], mVector[i-1])
-                self.vDataX.append(vX)
-                self.vDataY.append(vY)
-                i += 1
-            else:
-                self.vDataZ.append(mVector[i-1]) #-1
-            curS = sV
-    
-    def SetFunction(self):
-        '''Добавление возмущения к исходным данным
-        mRD = (1 - distortion)*mR2 + distortion * (mR2**degree) # В таком виде ругается на деление на ноль при отрицательных степенях из-за нулевой диагонали.
-        for i in range(len(mR2)):
-            mRD[i][i] = 0 
-        '''
-        size = len(self.mR2)
-        #szcoeff = NP.sqrt(size)
-        coeff = self.distortion #szcoeff*
-        mRD = NP.zeros((size, size))
-        lr = range(size)
-        for i in lr:
-            for j in range(i+1, size):
-                r2 = self.mR2[i][j]
-                Rd = r2**self.degree
-                mRD[i][j] = coeff*Rd + 1/Rd #NP.sqrt(1/r2) #distortion/degv
-                mRD[j][i] = mRD[i][j] 
-        self.mFunction = mRD 
-
-    def SetSpectrData(self):
-        self.SetFunction()
-        mG = mR2G(self.mFunction)
-        sG, vG = LA.eigh(mG)
-        vG = NP.transpose(vG)
-        self.Spectr2Projections(sG, vG)
-
-    def CalcNumOfSpectrum(self):
-        if self.Symm == 4:
-            NumSp = self.Size*self.Size
-            NumSpDeg = (NumSp-NumSp%2)/4
-            NumSp -= 1     
-        elif self.Symm == 6:
-            NumSp = 3*self.Size*(self.Size-1)
-            NumSpDeg = NumSp/3
-        else:
-            NumSp = Size*Size
-            NumSpDeg = int(NumSp/Symm)
-        
-        self.numSp, self.numSp2 = int(NumSp), int(NumSpDeg) 
-        self.numZ = self.numSp - 2*self.numSp2 # Количество невырожденных спектров
-        
-    def SetPoints(self):
-        '''Набор базовых точек'''
-        #if self.Symm == 3:
-            #self.vSet = Geo.vSetTri(size=[self.Size, self.Size])
-        if self.Symm == 4:
-            self.vSet = Geo.mSet2(self.Size, self.Size) # Квадратная сетка
-        elif self.Symm == 6: # Гексагональная сетка
-            self.vSet = Geo.vSetHex(size=[self.Size, self.Size])
-        else:
-            self.vSet = Geo.mSetRegular(nPoints=self.Symm, mult=self.Size, withZero=True, accur=7)
-        #print(self.vSet)
-
-    def SetSpectr(self):
-        self.SetPoints()
-        self.mR2 = Geo.mSetToD2(self.vSet) # Получили матрицу квадратов расстояний
-        self.CalcNumOfSpectrum()
-        self.SetSpectrData() 
-
-    def __init__(self, Symm=4, Size=4, distortion=-0.04, degree=1, error=0.00001):
-        self.Symm = Symm
-        self.Size = Size 
-        self.distortion = distortion
-        self.degree = degree
-        self.error = error
-        self.SetSpectr()
-
-class ShowSpectr(DataSpectr):
-    '''Класс визуализации спектра'''
-    def SetPlots(self):
-        self.fig.clear()
-        self.ax = []
-        nr, nc = 1, 1
-        if self.NumPlots > 1: nc = 2 
-        if self.NumPlots > 2: nr = 2
-        for i in range(self.NumPlots):
-            ax = self.fig.add_subplot(nr, nc, i+1, frame_on=False) # aspect='equal' 2, 2, i+1 nrows=nr, ncols=nc, plot_number=i+1
-            ax.set_aspect('equal', 'datalim')
-            ax.axison = False
-            self.ax.append(ax) 
-    
-    def IniCanvas(self):
-        '''Инициализация холста'''
-        self.fig = plt.figure(facecolor='white') #
-        self.SetPlots()
-        #fig, axes = plt.subplots(ncols=2, nrows=2) #,, sharex=sharex, sharey=sharey, subplot_kw=kw kw={'xticks': [], 'yticks': []} squeeze=True,   
-        #self.ax.set_projection('lambert')
-        #self.ax.set_autoscale_on(True)
-        #self.ax.autoscale_view()
-        #self.ax.autoscale_view(tight=None, scalex=True, scaley=True)
-        plt.subplots_adjust(left=0.0, right=1.0, bottom=0, top=1.0) #, wspace = 0.1, hspace = 0.1
-
-    def UpdateSpectr(self, ax, vX, vY, vSize, vColor):
-        #self.fig.clear()
-        ax.clear()
-        ax.axison = False
-        cmap = self.cmap
-        if self.inverseColor:
-            cmap = cmap + "_r"
-        
-        if self.PlotType == 'Points':
-            ax.scatter(vX, vY, s=vSize, c=vColor, marker=self.mark_style, cmap=cmap, alpha=self.alpha) #, norm=None, vmin=None, vmax=None, linewidths=None, verts=None, edgecolors=None
-        else: # triangulation
-            triang = tri.Triangulation(vX, vY)
-            if self.useVectorMarksize: # Mask off unwanted triangles.
-                xmid = vX[triang.triangles].mean(axis=1)
-                ymid = vY[triang.triangles].mean(axis=1)
-                lim = ((self.iMarksize+5)/len(self.vDataZ)/4)**2 #self.vSize*self.vSize *(self.iMarksize+1)
-                
-                if self.inverseMarksize:
-                    mask = NP.where(xmid*xmid + ymid*ymid <= lim, 1, 0)
-                else:
-                    mask = NP.where(xmid*xmid + ymid*ymid > lim, 1, 0)
-                triang.set_mask(mask)
-
-            if self.PlotType == 'Web':
-                ax.triplot(triang, marker=self.mark_style, ms=2**(self.msize), markerfacecolor='blue', linestyle='-', alpha=self.alpha) # color=vColor, cmap=self.cmap,
-            elif self.PlotType == 'Mosaic': # 'Web' and 'Mosaic' can be shown together 
-                ax.tripcolor(triang, self.vColor, shading='flat', cmap=cmap, alpha=self.alpha) #shading='gouraud' 
-        
-        ax.figure.canvas.draw()
-
-    def ShowSp(self):
-        vSize = 100*(2**(self.msize))    
-        if self.useVectorMarksize:
-            if self.inverseMarksize:
-                vSize /= (700*self.vSize)
-            else:
-                vSize *= (self.vSize)
-        
-        vColor = None
-        if self.useVectorColor:
-            vColor = self.vColor
-        
-        iSp = self.iSpectr
-        if iSp < 0: return
-        
-        for i in range(self.NumPlots): 
-            self.UpdateSpectr(self.ax[i], self.vDataX[iSp + i], self.vDataY[iSp + i], vSize, vColor) 
-
-    def ChangeIndex(self, val=0):
-        self.iSpectr = val
-        self.ShowSp()
-
-    def SetVectorMS(self, index=-1):
-        maxIndex = len(self.vDataZ)-1
-        if index >= 0: self.iMarksize = index
-        if self.iMarksize < 0: self.iMarksize = 0
-        elif self.iMarksize > maxIndex: self.iMarksize = maxIndex  
-        
-        vS = self.vDataZ[self.iMarksize]
-        maxVal = NP.max(vS) #, minVal = NP.min(vS)
-        self.vSize = (vS*vS)/(maxVal*maxVal) + 0.001
-
-    def SetMarksize(self, val=0):
-        self.SetVectorMS(int(float(val)))
-        self.ShowSp()
-
-    def ChangeMarksize(self, val=0):
-        self.msize = val
-        self.ShowSp()
-
-    def SetColor(self, index=0):
-        maxIndex = len(self.vDataZ)-1
-        if index >= 0: self.iColor = index
-        if self.iColor < 0: self.iColor = 0
-        elif self.iColor > maxIndex: self.iColor = maxIndex  
-        self.vColor = self.vDataZ[self.iColor]
-
-    def indUpdColor(self, val=0):
-        self.SetColor(int(float(val)))
-        self.ShowSp()
-
-    def SetAlpha(self, val=0):
-        self.alpha = val
-        self.ShowSp()
-        
-    def SetData(self, show=False):
-        self.SetSpectrData()
-        if show: self.ShowSp()
-        
-    def SetForm(self, iniData=True):
-        if iniData:
-            self.SetSpectr()
-        self.SetColor(-1)
-        self.SetVectorMS(-1)
-        self.ShowSp()
-            
-    def ChangeDistortion(self, val=0):
-        self.distortion = val
-        self.SetData(True) 
-
-    def ChangeDegree(self, val=0):
-        self.degree = val
-        self.SetData(True)
-
-    def dictDefaultValues(self):
-        return {'Symm': 6, 'Size': 10, 'distortion': -0.04, 'degree': 1, 'error': 0.00001,
-                'distortionRange': [-0.06, 0.06], 'degreeRange': [0.01, 2.01],
-                'iSpectr': 0, 'iColor': 0, 'iMarksize': 0,
-                'NumPlots': 1, 'PlotType': 'Points',
-                'cmap': 'hsv', 'inverseColor': False, 'useVectorColor': True, 'alpha': 0.5,
-                'msize': 2, 'mark_style': 'o', 'useVectorMarksize': False, 'inverseMarksize': False
-                }
-
-    def Spectr2Dict(self):
-        dictSp = self.dictDefaultValues() 
-        for key in dictSp.keys():
-            try: dictSp[key] = getattr(self, key) #dictSp[key] = self.__getattr__(key)
-            except: print('Spectr2Dict(): invalid attribute name: ' + key)
-        return dictSp
-        
-    def LoadFromDict(self, Dict=None, ini=False):
-        dictSp = self.dictDefaultValues()
-        if Dict is not None:
-            dictSp.update(Dict)
-        
-        DataSpectr.__init__(self, Symm=dictSp['Symm'], Size=dictSp['Size'], distortion=dictSp['distortion'], degree=dictSp['degree'], error=dictSp['error'])
-        for key, value in dictSp.items():
-            try: self.__setattr__(key, value)
-            except: print('LoadFromDict(): invalid attribute name: ' + key)
-
-        if ini: 
-            self.IniCanvas()
-        else:
-            self.SetPlots()
-        
-        self.SetForm(False)
-            
-    def __init__(self, dictAttr = None):
-        self.LoadFromDict(dictAttr, ini=True)
-
-###
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg #, NavigationToolbar2TkAgg
 
 def dicMarkStyle():
     # инвертированный словарь стилей маркера
     # http://matplotlib.org/api/markers_api.html#module-matplotlib.markers
-    return {v:k for k, v in Markers.MarkerStyle().markers.items()}
+    #return {v:k for k, v in Markers.MarkerStyle().markers.items()}
+    dictMS = {'o': 'circle', 'h': 'hexagon', 'D': 'diamond', '*': 'star', '.': 'point', ',': 'pixel', 'None': 'nothing'}
+    return {v:k for k, v in dictMS.items()}
 
 def mColorMap():
     # перечень доступных цветовых карт
@@ -336,18 +51,6 @@ def mColorMap():
                 'gist_rainbow', 'hsv', 'flag', 'prism']
     
     return cmaps
-
-def ValidCMap(smap):
-    vColorMap = mColorMap()
-    try:
-        ind = vColorMap.index(smap)
-    except:
-        return '' # неправильный идентификатор цветовой карты
-    if smap[0:2] == "==":
-        return vColorMap[ind+1]
-    return smap
-
-###
 
 def PlaceWidget(wd, row, col=0, colspan=1, stick='wn'):
     wd.grid(row=row, column=col, columnspan=colspan, sticky=stick)
@@ -456,7 +159,49 @@ class ControlWidget(object):
         PlaceWidget(self.rbPoints, rowControl, col=0, stick='w')
         PlaceWidget(self.rbMosaic, rowControl, col=1, stick='w')
         rowControl = PlaceWidget(self.rbWeb, rowControl, col=1, stick='e')
+        return self.AddLabel(rowControl)
+
+    def SetMaskWidgets(self, rowControl):
+        ## Маска триангуляции
+        def ChangeMaskFunction(val='Var'):
+            self.shSpectr.MaskFunction = val
+            self.shSpectr.ShowSp()
+
+        def SetMask(val=0, ini=False):
+            self.shSpectr.iMask = int(float(val))
+            self.chkMask.configure(text='Use: ' + str(int(self.shSpectr.iMask)))
+            if not ini:
+                self.shSpectr.ShowSp()
+            
+        def CheckMask():
+            self.shSpectr.useMask = useMask.get()
+            self.shSpectr.ShowSp()
+            
+        def InverseMask():
+            self.shSpectr.inverseMask = inverseMask.get()
+            self.shSpectr.ShowSp()
+            
+        rowControl = self.AddLabel(rowControl, "Mask", colsp=1)
+
+        vsMaskFunction = ['Std', 'Mean']
+        sMaskFunction = tk.StringVar(self.frControl)
+        self.omMaskFunction = ttk.OptionMenu(self.frControl, sMaskFunction, "Std", *vsMaskFunction, command=ChangeMaskFunction)  
+        rowControl = PlaceWidget(self.omMaskFunction, rowControl, col=1, stick='w') 
+
+        useMask = tk.IntVar()
+        useMask.set(False)
+        self.chkMask = ttk.Checkbutton(self.frControl, variable=useMask, onvalue=True, offvalue=False, command=CheckMask)
+        rowControl = PlaceWidget(self.chkMask, rowControl, col=0, stick='ew') 
     
+        self.scMask = ttk.Scale(self.frControl, orient='horizontal', length=self.colWidth2, from_=0, to=100, value=self.shSpectr.iMask, command=SetMask)
+        rowControl = PlaceWidget(self.scMask, rowControl, col=1, stick='ne')
+        SetMask(val=self.shSpectr.iMask, ini=True) 
+
+        inverseMask = tk.BooleanVar()
+        inverseMask.set(self.shSpectr.inverseMask)
+        self.chkInverseMask = ttk.Checkbutton(self.frControl, text="Inverse", variable=inverseMask, onvalue=True, offvalue=False, command=InverseMask)
+        rowControl = PlaceWidget(self.chkInverseMask, rowControl, col=0, colspan=2, stick='wn') 
+
         return self.AddLabel(rowControl)
 
     def SetFunctionWidgets(self, rowControl):
@@ -465,7 +210,7 @@ class ControlWidget(object):
             self.lblDistortion.configure(text="Distur: " + str(round(self.shSpectr.distortion, 3)))
             
         def SetDistortion(val=0):
-            distortion = Val2Val(int(float(val)), [0, 100], [self.shSpectr.distortionRange[0], self.shSpectr.distortionRange[1]])  
+            distortion = Geo.Val2Val(int(float(val)), [0, 100], [self.shSpectr.distortionRange[0], self.shSpectr.distortionRange[1]])  
             self.shSpectr.ChangeDistortion(distortion)
             SetDistortionLabel()
             
@@ -473,7 +218,7 @@ class ControlWidget(object):
             self.lblDegree.configure(text="Degree: " + str(round(self.shSpectr.degree, 2)))
 
         def SetDegree(val=0):
-            degree = Val2Val(int(float(val)), [0, 100], [self.shSpectr.degreeRange[0], self.shSpectr.degreeRange[1]])  
+            degree = Geo.Val2Val(int(float(val)), [0, 100], [self.shSpectr.degreeRange[0], self.shSpectr.degreeRange[1]])  
             self.shSpectr.ChangeDegree(degree)
             SetDegreeLabel()
 
@@ -484,7 +229,7 @@ class ControlWidget(object):
         self.lblDistortion = ttk.Label(self.frControl)
         PlaceWidget(self.lblDistortion, rowControl)
         
-        iniDist = Val2Val(self.shSpectr.distortion, [self.shSpectr.distortionRange[0], self.shSpectr.distortionRange[1]], [0, 100])
+        iniDist = Geo.Val2Val(self.shSpectr.distortion, [self.shSpectr.distortionRange[0], self.shSpectr.distortionRange[1]], [0, 100])
         self.scDistortion = ttk.Scale(self.frControl, orient='horizontal', length=self.colWidth2, from_=0, to=100, value=iniDist, command=SetDistortion) 
         rowControl = PlaceWidget(self.scDistortion, rowControl, colspan=2, stick='ne')
         SetDistortionLabel() 
@@ -494,7 +239,7 @@ class ControlWidget(object):
         self.lblDegree = ttk.Label(self.frControl)
         PlaceWidget(self.lblDegree, rowControl)
         
-        iniDegree = Val2Val(self.shSpectr.degree, [self.shSpectr.degreeRange[0], self.shSpectr.degreeRange[1]], [0, 100])
+        iniDegree = Geo.Val2Val(self.shSpectr.degree, [self.shSpectr.degreeRange[0], self.shSpectr.degreeRange[1]], [0, 100])
         self.scDegree = ttk.Scale(self.frControl, orient='horizontal', length=self.colWidth2, from_=0, to=100, value=iniDegree, command=SetDegree) 
         rowControl = PlaceWidget(self.scDegree, rowControl, colspan=2, stick='ne')
         SetDegreeLabel() 
@@ -510,7 +255,7 @@ class ControlWidget(object):
         def ChangeColorMap(val=0):
             cmap = mColorMap()[int(float(val))]
             self.shSpectr.cmap = cmap
-            self.lblCmap.configure(text=cmap)
+            self.lblCmap.configure(text='Map: ' + cmap)
             self.shSpectr.ShowSp()
             
         def SetVColor(val=0, ini=False):
@@ -528,7 +273,7 @@ class ControlWidget(object):
                 self.shSpectr.SetAlpha(float(val))
             self.lblAlpha.configure(text="Alpha: " + str(round(float(val), 2)))
     
-        rowControl = self.AddLabel(rowControl, "Color map", colsp=1)
+        rowControl = self.AddLabel(rowControl, "Color", colsp=1)
         
         inverseColor = tk.BooleanVar()
         inverseColor.set(False)
@@ -536,7 +281,7 @@ class ControlWidget(object):
         rowControl = PlaceWidget(self.chkInverseColor, rowControl, col=1, stick='w') 
         
         cmap = self.shSpectr.cmap
-        self.lblCmap = ttk.Label(self.frControl, text=cmap)
+        self.lblCmap = ttk.Label(self.frControl, text='Map: ' + cmap)
         PlaceWidget(self.lblCmap, rowControl)
         vColorMap = mColorMap()
         indCMap = vColorMap.index(cmap) 
@@ -578,7 +323,7 @@ class ControlWidget(object):
             ms = float(val)
             if not ini:
                 self.shSpectr.SetMarksize(ms)
-            self.chkMarkSize.configure(text="Vector: " + str(int(ms+1)))
+            self.chkMarkSize.configure(text="Vector: " + str(int(ms+3)))
     
         def CheckMarksize():
             self.shSpectr.useVectorMarksize = useVectorMarksize.get()
@@ -590,15 +335,15 @@ class ControlWidget(object):
 
         rowControl = self.AddLabel(rowControl, "Markers", colsp=1)
         
-        vsMarkStyle = sorted(list(dicMarkStyle().keys()))
+        vsMarkStyle = list(dicMarkStyle().keys())
         sMarkStyle = tk.StringVar(self.frControl)
         self.omMarkStyle = ttk.OptionMenu(self.frControl, sMarkStyle, "circle", *vsMarkStyle, command=ChangeMarkform)  
-        rowControl = PlaceWidget(self.omMarkStyle, rowControl, col=1, stick='w') 
+        rowControl = PlaceWidget(self.omMarkStyle, rowControl, col=1, stick='wn') 
 
         self.lblMarksize = ttk.Label(self.frControl)
         PlaceWidget(self.lblMarksize, rowControl)
         
-        self.scMarksize = ttk.Scale(self.frControl, orient='horizontal', length=self.colWidth2, from_=-1., to=8., value=self.shSpectr.msize, command=SetMarksize)
+        self.scMarksize = ttk.Scale(self.frControl, orient='horizontal', length=self.colWidth2, from_=-2., to=7., value=self.shSpectr.msize, command=SetMarksize)
         rowControl = PlaceWidget(self.scMarksize, rowControl, col=1, stick='ne')
         SetMarksizeLabel() 
     
@@ -620,7 +365,7 @@ class ControlWidget(object):
 
     def UpdateControlWidgets(self):
         # Инициализация панели управления
-        self.lblColor, self.colWidth2 = 'black', 140
+        self.lblColor, self.colWidth2 = 'black', 150
         try: self.frControl.destroy()
         except: a=1
         self.frControl = ttk.Frame(self.root, height=2, borderwidth=10, relief='sunken') #bg='green', relief: flat, groove, raised, ridge, solid, sunken
@@ -629,6 +374,7 @@ class ControlWidget(object):
         rowControl = self.SetBaseWidgets(0)
         rowControl = self.SetNumPlotsWidgets(rowControl)
         rowControl = self.SetPlotWidgets(rowControl)
+        rowControl = self.SetMaskWidgets(rowControl)
         rowControl = self.SetFunctionWidgets(rowControl)
         rowControl = self.SetColorWidgets(rowControl)
         rowControl = self.SetMarkerWidgets(rowControl)
@@ -681,10 +427,10 @@ class ControlWidget(object):
 
         def _quit():
             root.quit()     # stops mainloop
-            root.destroy()  # this is necessary on Windows to prevent
+            root.destroy()  # this is necessary on Windows
         
-        menuSpectr = tk.Menu(self.root) #создается объект Меню на главном окне
-        self.root.config(menu=menuSpectr) #окно конфигурируется с указанием меню для него
+        menuSpectr = tk.Menu(self.root)
+        self.root.config(menu=menuSpectr)
  
         fm = tk.Menu(menuSpectr, tearoff=0) # стандартные операции
         fm.add_command(label="New", command=NewSpectr)
@@ -693,7 +439,7 @@ class ControlWidget(object):
         fm.add_command(label="Save as picture...", command=Image2File)
         fm.add_separator()
         fm.add_command(label="Exit", command=_quit)
-        menuSpectr.add_cascade(label="Spectr", menu=fm) #пункт располагается на основном меню
+        menuSpectr.add_cascade(label="Spectr", menu=fm)
          
         hm = tk.Menu(menuSpectr, tearoff=0) # помощь
         hm.add_command(label="Help")
@@ -712,43 +458,27 @@ class ControlWidget(object):
         self.SetMenuWidget()
             
         self.UpdateControlWidgets()
+        self.shSpectr.ShowSp()
 
-def main():
+def main(title):
+    # Основное тело
     root = tk.Tk()
-    root.wm_title("Spectroscope 2D (v0.31)")
+    root.wm_title(title)
     root.rowconfigure(0, weight=1)
     root.columnconfigure(0, weight=1)
 
-    shSpectr = ShowSpectr()
-    
-    #print(shSpectr.Spectr2Dict())
-    
+    shSpectr = SD.ShowSpectr()
     ctrWidgets = ControlWidget(root, shSpectr)
-
-    ## Панель формы
-    #btnQuit = ttk.Button(root, text='Quit', command=None)
-    #btnQuit.grid(row=1, column=1, sticky='es')
 
     tk.mainloop()
 
-main()
-
+main("Spectroscope 2D (v0.33)")
 
 # TODO:
-# * Сохранение спектра в файл (параметры генерации), запрос на сохранение при модификации, восстановление при открытии программы
-# * Перенос в веб - mplD3
-# * Подчистка файлов проекта
- 
-# * Добавить базы - 3, возможно, также 5 и 7, 8 - быстро не получилось. Можно попробовать использовать текущий спектр как базу
-# * Анимация с сохранением в гифку
-# * Учет/настройка цвета для режима Web
-# * Сдвиг палитры. Если анимировать, то мозаики начнут играть цветом.
 # * Управление доступностью элементов управления
-# * Регулирование искажений внешней картинкой? - пока непонятно, как правильно искажать
-
-# - done Добавление верхнего меню
-# - done Сохранение картинки в файл
-# - done Вывод одновременно 2-х или 4-х спектров
-# - done Инвертирование палитры
-# - done Выбор цветовой карты из дерева - сделано через слайдер
-
+# * Перенос в веб - mplD3
+# * запрос на сохранение при модификации, восстановление при открытии программы
+# * Добавить базы - 3, возможно, также 5 и 7, 8. 
+# * Использовать произвольную конфигурацию точек на плоскости, текущий спектр как базу.
+# * Анимация с сохранением в гифку. Генерация случайного. 
+# * Сдвиг палитры. Если анимировать, то мозаики начнут играть цветом.

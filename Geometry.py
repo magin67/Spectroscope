@@ -4,8 +4,15 @@ import math
 import numpy as NP
 #import GraphFlow as GF
 
-''' По набору координат узлов формируем матрицу квадратов расстояний'''
+def Val2Val(val, rangeFrom = [0, 100], rangeTo=[0, 1]):
+    # Приведение числа из одного диапазона к другому - Normalisation
+    # val - число из диапазона rangeFrom.
+    # rangeTo - диапазон, к которому надо привести
+    relval = (val-rangeFrom[0])/(rangeFrom[1]-rangeFrom[0])
+    return rangeTo[0] + relval*(rangeTo[1] - rangeTo[0])  
+
 def mSetToD2(mSet, coeff = 1.):
+    ''' По набору координат узлов формируем матрицу квадратов расстояний'''
     NumNodes = len(mSet)
     mR = NP.zeros((NumNodes, NumNodes))
     i = 0
