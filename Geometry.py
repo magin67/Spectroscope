@@ -1,8 +1,9 @@
 # -*- coding:utf-8 -*-
-''' Created on 30.06.2015, @author: ДМ '''
+''' Created on 30.06.2015, @author: dmagin'''
 import math
 import numpy as NP
-#import GraphFlow as GF
+
+''' Общее '''
 
 def Val2Val(val, rangeFrom = [0, 100], rangeTo=[0, 1]):
     # Приведение числа из одного диапазона к другому - Normalisation
@@ -11,60 +12,58 @@ def Val2Val(val, rangeFrom = [0, 100], rangeTo=[0, 1]):
     relval = (val-rangeFrom[0])/(rangeFrom[1]-rangeFrom[0])
     return rangeTo[0] + relval*(rangeTo[1] - rangeTo[0])  
 
+def RotateData(vDataX, vDataY):
+    # Стабилизация данных относительно осей по первой точке
+    indX = 0 
+    cX, cY = vDataX[indX], vDataY[indX]
+    cL = NP.sqrt(cX*cX + cY*cY)
+    if cL == 0: return vDataX, vDataY, cL
+    if cX < 0:
+        cosFi, sinFi = -cX/cL, cY/cL
+    else:
+        cosFi, sinFi = cX/cL, -cY/cL
+    mRotate = [(cosFi, -sinFi), (sinFi, cosFi)]
+    mData = [vDataX, vDataY]
+    mResult = NP.dot(mRotate, mData)
+    
+    return mResult[0], mResult[1], cL
+
+def mAddSet(mSet1, mSet2):
+    # Объединение двух наборов
+    mSet = mSet1.copy()
+    mSet3.extend(mSet2)
+    return mSet
+
+def r2(point1, point2):
+    # Квадрат расстояния между точками
+    return sum((x2 - x1)*(x2 - x1) for x1, x2 in zip(point1, point2))
+
+''' Наборы координат узлов '''
+
 def mSetToD2(mSet, coeff = 1.):
-    ''' По набору координат узлов формируем матрицу квадратов расстояний'''
+    # Формирование матрицы квадратов расстояний на основании координат узлов
     NumNodes = len(mSet)
+    rangeIndex = range(NumNodes)
     mR = NP.zeros((NumNodes, NumNodes))
-    i = 0
-    for disp1 in mSet:
-        j = 0
-        for disp2 in mSet:
-            if disp2 == disp1: 
-                mR[i][j] = 0
-            else:
-                dr2 = 0
-                for ik in range(len(disp1)):
-                    dr = (disp2[ik] - disp1[ik])*coeff
-                    dr2 += dr*dr 
-                mR[i][j] = dr2
-            j += 1
-        i += 1 
+    for i in rangeIndex: 
+        for j in rangeIndex:
+            mR[i][j] = r2(mSet[i], mSet[j])*coeff 
     return mR
 
 def mSetToD(mSet, coeff = 1., degree = 1.):
-    ''' По набору координат узлов формируем матрицу расстояний.
-    Можно управлять степенью - mSetToD(mSet, coeff = 1., degree = 3) вернет матрицу кубов расстояний
-    '''
+    # Формирование матрицы расстояний на основании координат узлов
+    # Можно задавать степень - mSetToD(mSet, coeff = 1., degree = 3) вернет матрицу кубов расстояний
     NumNodes = len(mSet)
+    rangeIndex = range(NumNodes)
     mR = NP.zeros((NumNodes, NumNodes))
-    i = 0
-    for disp1 in mSet:
-        j = 0
-        for disp2 in mSet:
-            if disp2 == disp1: 
-                mR[i][j] = 0
-            else:
-                dr2 = 0
-                for ik in range(len(disp1)):
-                    d = (disp2[ik] - disp1[ik])
-                    dr2 += d*d
-                mR[i][j] = coeff*(dr2**(degree/2))
-            j += 1
-        i += 1 
+    for i in rangeIndex: 
+        for j in rangeIndex:
+            mR[i][j] = (r2(mSet[i], mSet[j])**(degree/2))*coeff 
     return mR
 
-def mAddSet(mSet1, mSet2):
-    '''Объединение двух наборов'''
-    mSet = [] 
-    for cSet in mSet1:
-        mSet.append(cSet)
-    for cSet in mSet2:
-        mSet.append(cSet)
-    return mSet
-
 def mDivideSet(mSet, N=2, mult=1, accur=8):
-    '''Делим заданный набор координат точек mSet на заданную кратность N и формируем новый набор. Повторяем mult раз'''
-    #print(mSet)
+    # Мультипликация набора координат точек
+    # Делит набор координат mSet на заданную кратность N и формирует новый набор. Повторяется mult раз
     mForDiv = mSet
     for m in range(mult):
         mSetResult = [] 
@@ -84,8 +83,8 @@ def mDivideSet(mSet, N=2, mult=1, accur=8):
     #print(mSetResult)
     return mSetResult
 
-''' Формирование набора узлов (точек) по квадратной решетке '''
 def mSet(Length):
+    # Набор координат узлов (точек) квадратной решетки
     mSet = [] 
     for disp1 in range(Length):
         for disp2 in range(Length):
@@ -93,7 +92,7 @@ def mSet(Length):
     return mSet
 
 def mSet2(NumRow, NumCol = 1, aRow = 1, aCol = 1, dispRow = 0, dispCol = 0):
-    '''Двумерная: простая прямоугольная'''
+    # Набор координат узлов двумерной решетки: простая прямоугольная
     mSet = [] 
     for row in range(NumRow):
         for col in range(NumCol):
@@ -101,7 +100,7 @@ def mSet2(NumRow, NumCol = 1, aRow = 1, aCol = 1, dispRow = 0, dispCol = 0):
     return mSet
 
 def vSet2vect(ev1, ev2, d1 = [-1, 1], d2 = [-1, 1], withLimit = False):
-    '''Двумерная: по базисным векторам'''
+    # Набор координат узлов двумерной решетки: по базисным векторам
     mSet = [] 
     for n1 in range(d1[0], d1[1]+1):
         x1, y1 = ev1[0]*n1, ev1[1]*n1
@@ -112,10 +111,9 @@ def vSet2vect(ev1, ev2, d1 = [-1, 1], d2 = [-1, 1], withLimit = False):
     return mSet
 
 def vSetHex(r = 1, size = [1, 1]):
-    '''Гексагональная: сота
-    r - шаг соты, минимальное расстояние между узлами
-    size[] - размеры сетки
-    '''
+    # Гексагональная решетка: сота
+    # r - шаг соты, минимальное расстояние между узлами
+    # size[] - размеры сетки
     n1, n2 = size[0]-1, size[1]-1
     eSet = mSetRegular(3, r)
     vSet = vSet2vect(eSet[0], eSet[1], [-n1, n1], [-n2, n2], True)
@@ -123,7 +121,7 @@ def vSetHex(r = 1, size = [1, 1]):
     return vSet
 
 def mSet3(Length1, Length2 = 1, Length3 = 1):
-    ''' Трехмерная '''
+    # Трехмерная прямоугольная решетка
     mSet = [] 
     for x in range(Length1):
         for y in range(Length2):
@@ -132,11 +130,11 @@ def mSet3(Length1, Length2 = 1, Length3 = 1):
     return mSet
 
 def mSetRegular(nPoints = 3, r = 1., cc = [0, 0, 0], mult = 1, withZero = False, accur=8):
-    ''' Координаты правильных многоугольников
-    nPoints - количество вершин,
-    r - внешний радиус
-    cc - координаты центра
-    mult - количество размножений координат в направлении радиуса'''
+    # Координаты правильных многоугольников
+    #    nPoints - количество вершин,
+    #    r - внешний радиус
+    #    cc - координаты центра
+    #    mult - количество размножений координат в направлении радиуса
     mSet = []
     xc, yc, zc = cc[0], cc[1], cc[2]
     fi = 2*NP.pi/float(nPoints)
@@ -151,8 +149,8 @@ def mSetRegular(nPoints = 3, r = 1., cc = [0, 0, 0], mult = 1, withZero = False,
     if withZero: mSet.append((0, 0, 0))
     return mSet
 
-''' Координаты правильного креста'''
 def mSetCross(N = 2, Length = 1., D = 2):
+    # Координаты правильного креста
     mSet = []
     a = Length
     for i in range(N):
@@ -168,11 +166,11 @@ def mSetCross(N = 2, Length = 1., D = 2):
         if D > 2: # трехмерный
             mSet.append((0, 0, i*a))
             mSet.append((0, 0, -i*a))
-            
+
     return mSet
 
-''' Координаты прямого угла'''
 def mSetAngle(N = 1, a = 1.):
+    # Координаты прямого угла
     mSet = []
     for i in range(N):
         mSet.append((i*a, 0))
@@ -184,29 +182,29 @@ def mSetAngle(N = 1, a = 1.):
 
 ''' Координаты правильных многогранников, r - внешний радиус'''
 
-''' Тетраэдр - 4'''
 def mD2Tetrahedron(r = 1.):
+    # Тетраэдр - 4
     fi = 1./math.sqrt(2)
     coeff = r/math.sqrt(3./8.)/2
     mCoord = [(-1, 0, -fi), (1, 0, -fi),
             (0, -1, fi), (0, 1, fi)]
     return mSetToD2(mCoord, coeff)
 
-''' Октаэдр - 8'''
 def mD2Octahedron(r = 1.):
+    # Октаэдр - 8
     coeff = r
     mCoord = [(-1, 0, 0), (1, 0, 0), (0, -1, 0), (0, 1, 0), (0, 0, -1), (0, 0, 1)]
     return mSetToD2(mCoord, coeff)
 
-''' Куб - 8'''
 def mD2Cube(r = 1.):
+    # Куб - 8
     coeff = r/math.sqrt(3.)
     mCoord = [(-1, -1, -1), (-1, -1, 1), (-1, 1, -1), (-1, 1, 1),
               (1, -1, -1), (1, -1, 1), (1, 1, -1), (1, 1, 1)]
     return mSetToD2(mCoord, coeff)
 
-''' Икосаэдр - 12'''
 def mD2Icosahedron(r = 1.):
+    # Икосаэдр - 12
     fi = (1.+math.sqrt(5))/2
     coeff = r/math.sqrt(fi*math.sqrt(5))
     mCoord = [(0, -1, -fi), (0, -1, fi),(0, 1, -fi), (0, 1, fi),
@@ -214,8 +212,8 @@ def mD2Icosahedron(r = 1.):
             (-fi, 0, -1), (fi, 0, -1),(-fi, 0, 1), (fi, 0, 1)]
     return mSetToD2(mCoord, coeff)
 
-''' Додекаэдр - 20'''
 def mD2Dodecahedron(r = 1.):
+    # Додекаэдр - 20
     fi = (1.+math.sqrt(5))/2
     coeff = r/math.sqrt(3)
     mCoord = [(-1, -1, -1), (-1, -1, 1), (-1, 1, -1), (-1, 1, 1), (1, -1, -1), (1, -1, 1), (1, 1, -1), (1, 1, 1),
@@ -226,41 +224,21 @@ def mD2Dodecahedron(r = 1.):
 
 '''Последовательности'''
 
-''' Одномерная сетка '''
 def mSetGrid1(N, a, offset):
+    # Одномерная сетка
     mSet = []
     for i in range(N):
         mSet.append((i*a+offset,))
     return mSet
 
-''' Фибоначчи '''
 def mSetFibo(N):
+    # Фибоначчи
     mSet = []
-    Fibo_2 = 0 
-    Fibo_1 = 1
+    Fibo_2, Fibo_1 = 0, 1 
     mSet.append((1,)) 
     for i in range(1, N):
         Fibo = Fibo_1 + Fibo_2 
         mSet.append((Fibo,))
         Fibo_2 = Fibo_1
         Fibo_1 = Fibo 
-        
     return mSet
-
-def RotateData(vDataX, vDataY):
-    '''Стабилизирует данные относительно осей по первой точке'''
-    #indX = vDataX.argmax()
-    indX = 0 
-    cX, cY = vDataX[indX], vDataY[indX]
-    cL = NP.sqrt(cX*cX + cY*cY)
-    if cL == 0: return vDataX, vDataY, cL
-    if cX < 0:
-        cosFi, sinFi = -cX/cL, cY/cL
-    else:
-        cosFi, sinFi = cX/cL, -cY/cL
-    #print(cosFi, sinFi)
-    mRotate = [(cosFi, -sinFi), (sinFi, cosFi)]
-    mData = [vDataX, vDataY]
-    mResult = NP.dot(mRotate, mData)
-    
-    return mResult[0], mResult[1], cL

@@ -1,8 +1,7 @@
 # -*- coding:utf-8 -*-
 #!/usr/bin/env python
 """ Визуализация спектров. Управление
-Начало: ноябрь, 2016
-Редактирован: 22.12.2016
+Created on 20.11.2016, @author: dmagin
 """
 import numpy as NP
 
@@ -14,43 +13,6 @@ from tkinter import ttk
 import tkinter.filedialog as filedialog 
  
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg #, NavigationToolbar2TkAgg
-
-def dicMarkStyle():
-    # инвертированный словарь стилей маркера
-    # http://matplotlib.org/api/markers_api.html#module-matplotlib.markers
-    #return {v:k for k, v in Markers.MarkerStyle().markers.items()}
-    dictMS = {'o': 'circle', 'h': 'hexagon', 'D': 'diamond', '*': 'star', '.': 'point', ',': 'pixel', 'None': 'nothing'}
-    return {v:k for k, v in dictMS.items()}
-
-def mColorMap():
-    # перечень доступных цветовых карт
-    # http://matplotlib.org/examples/color/colormaps_reference.html
-    # ['hsv', 'gist_rainbow', 'jet', 'RdBu_r', 'gist_earth', 'rainbow', 'brg', 'winter', 'prism']
-    cmaps = [#'== Perceptually Uniform Sequential ==',
-                'viridis', 'inferno', 'plasma', 'magma',
-             #'== Sequential ==',
-                'Blues', 'BuGn', 'BuPu',
-                'GnBu', 'Greens', 'Greys', 'Oranges', 'OrRd',
-                'PuBu', 'PuBuGn', 'PuRd', 'Purples', 'RdPu',
-                'Reds', 'YlGn', 'YlGnBu', 'YlOrBr', 'YlOrRd',
-             #'== Sequential (2) ==',
-                'afmhot', 'autumn', 'bone', 'cool',
-                'copper', 'gist_heat', 'gray', 'hot',
-                'pink', 'spring', 'summer', 'winter',
-             #'== Diverging ==',
-                'BrBG', 'bwr', 'coolwarm', 'PiYG', 'PRGn', 'PuOr',
-                'RdBu', 'RdGy', 'RdYlBu', 'RdYlGn', 'Spectral', 'seismic',
-             #'== Qualitative ==',
-                 'Accent', 'Dark2', 'Paired', 'Pastel1',
-                 'Pastel2', 'Set1', 'Set2', 'Set3',
-             #'== Miscellaneous ==',
-                'gist_earth', 'terrain', 'ocean', 'gist_stern',
-                'brg', 'CMRmap', 'cubehelix',
-                'gnuplot', 'gnuplot2', 'gist_ncar',
-                'nipy_spectral', 'jet', 'rainbow',
-                'gist_rainbow', 'hsv', 'flag', 'prism']
-    
-    return cmaps
 
 def PlaceWidget(wd, row, col=0, colspan=1, stick='wn'):
     wd.grid(row=row, column=col, columnspan=colspan, sticky=stick)
@@ -98,8 +60,8 @@ class ControlWidget(object):
         
         Symm = tk.IntVar()
         Symm.set(self.shSpectr.Symm)
-        self.rbSymm6 = ttk.Radiobutton(self.frControl, text="Hex", variable=Symm, value=6, command=ChangeSymm) #.pack(anchor=W)
-        self.rbSymm4 = ttk.Radiobutton(self.frControl, text="Square", variable=Symm, value=4, command=ChangeSymm) #.pack(anchor=W)
+        self.rbSymm6 = ttk.Radiobutton(self.frControl, text="Hex", variable=Symm, value=6, command=ChangeSymm)
+        self.rbSymm4 = ttk.Radiobutton(self.frControl, text="Square", variable=Symm, value=4, command=ChangeSymm)
         rowControl = PlaceWidget(self.rbSymm6, rowControl, col=0, stick='ns')
         rowControl = PlaceWidget(self.rbSymm4, rowControl, col=1, stick='ns')
     
@@ -121,7 +83,7 @@ class ControlWidget(object):
         return self.AddLabel(rowControl)
 
     def SetNumPlotsWidgets(self, rowControl):
-        ## Количество рисунков (1, 2, 4)
+        ## Количество рисунков (1, 4, 9)
         def SetNumPlots():
             self.shSpectr.NumPlots = NumPlots.get()
             self.scIndex.configure(to=int(self.shSpectr.numSp2-self.shSpectr.NumPlots)) #, value=0
@@ -133,8 +95,8 @@ class ControlWidget(object):
         NumPlots = tk.IntVar(self.frControl)
         NumPlots.set(self.shSpectr.NumPlots)
         self.NumPlots1 = ttk.Radiobutton(self.frControl, text="1", variable=NumPlots, value=1, command=SetNumPlots)
-        self.NumPlots2 = ttk.Radiobutton(self.frControl, text="2", variable=NumPlots, value=2, command=SetNumPlots)
-        self.NumPlots4 = ttk.Radiobutton(self.frControl, text="4", variable=NumPlots, value=4, command=SetNumPlots)
+        self.NumPlots2 = ttk.Radiobutton(self.frControl, text="4", variable=NumPlots, value=4, command=SetNumPlots)
+        self.NumPlots4 = ttk.Radiobutton(self.frControl, text="9", variable=NumPlots, value=9, command=SetNumPlots)
     
         PlaceWidget(self.NumPlots1, rowControl, col=1, stick='w')
         PlaceWidget(self.NumPlots2, rowControl, col=1, stick='n')
@@ -207,7 +169,7 @@ class ControlWidget(object):
     def SetFunctionWidgets(self, rowControl):
         ## Функция
         def SetDistortionLabel():
-            self.lblDistortion.configure(text="Distur: " + str(round(self.shSpectr.distortion, 3)))
+            self.lblDistortion.configure(text="Disturbance: " + str(round(self.shSpectr.distortion, 3)))
             
         def SetDistortion(val=0):
             distortion = Geo.Val2Val(int(float(val)), [0, 100], [self.shSpectr.distortionRange[0], self.shSpectr.distortionRange[1]])  
@@ -283,13 +245,13 @@ class ControlWidget(object):
         cmap = self.shSpectr.cmap
         self.lblCmap = ttk.Label(self.frControl, text='Map: ' + cmap)
         PlaceWidget(self.lblCmap, rowControl)
-        vColorMap = mColorMap()
+        vColorMap = SD.mColorMap()
         indCMap = vColorMap.index(cmap) 
         self.scColorMap = ttk.Scale(self.frControl, orient='horizontal', length=self.colWidth2, from_=0, to=len(vColorMap)-1, value=indCMap, command=ChangeColorMap)
         rowControl = PlaceWidget(self.scColorMap, rowControl, col=1, stick='ne') 
     
         useVectorColor = tk.IntVar()
-        useVectorColor.set(True)
+        useVectorColor.set(self.shSpectr.useVectorColor)
         self.chkVectorColor = ttk.Checkbutton(self.frControl, variable=useVectorColor, onvalue=True, offvalue=False, command=CheckVectorColor)
         rowControl = PlaceWidget(self.chkVectorColor, rowControl, col=0, stick='ew') 
         
@@ -313,7 +275,7 @@ class ControlWidget(object):
             self.shSpectr.ShowSp()
 
         def SetMarksizeLabel():
-            self.lblMarksize.configure(text="Size: " + str(round(self.scMarksize.get()+2, 1)))
+            self.lblMarksize.configure(text="Size: " + str(round(self.scMarksize.get(), 1)))
 
         def SetMarksize(val=0):
             self.shSpectr.ChangeMarksize(float(val))
@@ -335,7 +297,7 @@ class ControlWidget(object):
 
         rowControl = self.AddLabel(rowControl, "Markers", colsp=1)
         
-        vsMarkStyle = list(dicMarkStyle().keys())
+        vsMarkStyle = list(SD.dicMarkStyle().keys())
         sMarkStyle = tk.StringVar(self.frControl)
         self.omMarkStyle = ttk.OptionMenu(self.frControl, sMarkStyle, "circle", *vsMarkStyle, command=ChangeMarkform)  
         rowControl = PlaceWidget(self.omMarkStyle, rowControl, col=1, stick='wn') 
@@ -343,12 +305,13 @@ class ControlWidget(object):
         self.lblMarksize = ttk.Label(self.frControl)
         PlaceWidget(self.lblMarksize, rowControl)
         
-        self.scMarksize = ttk.Scale(self.frControl, orient='horizontal', length=self.colWidth2, from_=-2., to=7., value=self.shSpectr.msize, command=SetMarksize)
+        self.scMarksize = ttk.Scale(self.frControl, orient='horizontal', length=self.colWidth2, 
+                from_=self.shSpectr.MarksizeRange[0], to=self.shSpectr.MarksizeRange[1], value=self.shSpectr.msize, command=SetMarksize)
         rowControl = PlaceWidget(self.scMarksize, rowControl, col=1, stick='ne')
         SetMarksizeLabel() 
     
         useVectorMarksize = tk.BooleanVar()
-        useVectorMarksize.set(False)
+        useVectorMarksize.set(self.shSpectr.useVectorMarksize)
         self.chkMarkSize = ttk.Checkbutton(self.frControl, variable=useVectorMarksize, onvalue=True, offvalue=False, command=CheckMarksize)
         rowControl = PlaceWidget(self.chkMarkSize, rowControl, col=0, stick='ew') 
         
@@ -357,7 +320,7 @@ class ControlWidget(object):
         SetVmarksize(val=self.shSpectr.iMarksize, ini=True)
 
         inverseMarksize = tk.BooleanVar()
-        inverseMarksize.set(False)
+        inverseMarksize.set(self.shSpectr.inverseMarksize)
         self.chkInverseMarksize = ttk.Checkbutton(self.frControl, text="Reverse", variable=inverseMarksize, onvalue=True, offvalue=False, command=InverseMarksize)
         rowControl = PlaceWidget(self.chkInverseMarksize, rowControl, col=0, stick='wn') 
         
@@ -368,16 +331,16 @@ class ControlWidget(object):
         self.lblColor, self.colWidth2 = 'black', 150
         try: self.frControl.destroy()
         except: a=1
-        self.frControl = ttk.Frame(self.root, height=2, borderwidth=10, relief='sunken') #bg='green', relief: flat, groove, raised, ridge, solid, sunken
+        self.frControl = ttk.Frame(self.root, height=2, borderwidth=10, relief='sunken') # relief: flat, groove, raised, ridge, solid, sunken
         self.frControl.grid(row=0, column=1, sticky='nse')
         
         rowControl = self.SetBaseWidgets(0)
         rowControl = self.SetNumPlotsWidgets(rowControl)
         rowControl = self.SetPlotWidgets(rowControl)
-        rowControl = self.SetMaskWidgets(rowControl)
         rowControl = self.SetFunctionWidgets(rowControl)
         rowControl = self.SetColorWidgets(rowControl)
         rowControl = self.SetMarkerWidgets(rowControl)
+        rowControl = self.SetMaskWidgets(rowControl)
         
     def SetMenuWidget(self):
         def NewSpectr():
@@ -475,10 +438,9 @@ def main(title):
 main("Spectroscope 2D (v0.33)")
 
 # TODO:
-# * Управление доступностью элементов управления
-# * Перенос в веб - mplD3
-# * запрос на сохранение при модификации, восстановление при открытии программы
-# * Добавить базы - 3, возможно, также 5 и 7, 8. 
+# * Управление релевантностью элементов управления
+# * Сохранение/восстановление контекста
+# * Добавить базы - 3, 5, 7, 8. 
 # * Использовать произвольную конфигурацию точек на плоскости, текущий спектр как базу.
 # * Анимация с сохранением в гифку. Генерация случайного. 
 # * Сдвиг палитры. Если анимировать, то мозаики начнут играть цветом.
