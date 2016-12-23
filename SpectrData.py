@@ -213,7 +213,7 @@ class ShowSpectr(DataSpectr):
         ax.figure.canvas.draw()
 
     def ShowSp(self):
-        vSize = 100*(2**(self.msize-3))    
+        vSize = 100*(2**(self.msize-4))    
         if self.useVectorMarksize:
             if self.inverseMarksize:
                 vSize /= (700*self.vSize)
@@ -293,7 +293,7 @@ class ShowSpectr(DataSpectr):
                 'NumPlots': 1, 'PlotType': 'Points',
                 'useMask': False, 'iMask': 0, 'inverseMask': False, 'MaskFunction': 'Std',
                 'cmap': 'hsv', 'inverseColor': False, 'useVectorColor': False, 'alpha': 0.5,
-                'msize': 2, 'mark_style': 'o', 'useVectorMarksize': False, 'inverseMarksize': False, 'MarksizeRange': [1, 9],
+                'msize': 2, 'mark_style': 'o', 'useVectorMarksize': False, 'inverseMarksize': False, 'MarksizeRange': [1, 10],
                 }
 
     def Spectr2Dict(self):

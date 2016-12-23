@@ -231,9 +231,10 @@ class ControlWidget(object):
             self.shSpectr.ShowSp()
             
         def SetAlpha(val=0, ini=False):
+            normAlpha = Geo.Val2Val(float(val), [0, 100], [0, 1])
             if not ini:
-                self.shSpectr.SetAlpha(float(val))
-            self.lblAlpha.configure(text="Alpha: " + str(round(float(val), 2)))
+                self.shSpectr.SetAlpha(normAlpha)
+            self.lblAlpha.configure(text="Alpha: " + str(round(normAlpha, 2)))
     
         rowControl = self.AddLabel(rowControl, "Color", colsp=1)
         
@@ -258,11 +259,12 @@ class ControlWidget(object):
         self.scColor = ttk.Scale(self.frControl, orient='horizontal', length=self.colWidth2, from_=0, to=self.shSpectr.numZ-1, value=self.shSpectr.iColor, command=SetVColor)
         rowControl = PlaceWidget(self.scColor, rowControl, col=1, stick='ne')
         SetVColor(val=self.shSpectr.iColor, ini=True) 
-    
+
+
+        iniAlpha = Geo.Val2Val(self.shSpectr.alpha, [0, 1], [0, 100])
         self.lblAlpha = ttk.Label(self.frControl)
         PlaceWidget(self.lblAlpha, rowControl)
-        #rowControl = self.AddLabel(rowControl, "Saturation", self.lblColor, 1)
-        self.scAlpha = ttk.Scale(self.frControl, orient='horizontal', length=self.colWidth2, from_=0.1, to=1, value=self.shSpectr.alpha, command=SetAlpha)
+        self.scAlpha = ttk.Scale(self.frControl, orient='horizontal', length=self.colWidth2, from_=0, to=100, value=iniAlpha, command=SetAlpha)
         rowControl = PlaceWidget(self.scAlpha, rowControl, col=1, stick='ne')
         SetAlpha(self.scAlpha.get(), True) 
     
@@ -322,9 +324,9 @@ class ControlWidget(object):
         inverseMarksize = tk.BooleanVar()
         inverseMarksize.set(self.shSpectr.inverseMarksize)
         self.chkInverseMarksize = ttk.Checkbutton(self.frControl, text="Reverse", variable=inverseMarksize, onvalue=True, offvalue=False, command=InverseMarksize)
-        rowControl = PlaceWidget(self.chkInverseMarksize, rowControl, col=0, stick='wn') 
-        
-        return rowControl
+        rowControl = PlaceWidget(self.chkInverseMarksize, rowControl, col=0, colspan=2, stick='wn') 
+
+        return self.AddLabel(rowControl)
 
     def UpdateControlWidgets(self):
         # Инициализация панели управления
@@ -345,6 +347,7 @@ class ControlWidget(object):
     def SetMenuWidget(self):
         def NewSpectr():
             self.shSpectr.LoadFromDict()
+            self.spName = 'mySpectr'
             self.UpdateControlWidgets()
         
         def OpenFromDict():
@@ -354,7 +357,8 @@ class ControlWidget(object):
             options['title'] = 'Choose file'
             filelist = filedialog.askopenfiles(**options)
             if filelist is None: return
-            file = filelist[0] 
+            file = filelist[0]
+            self.spName = file.name[:(file.name.index('.'))]
             dictSpectr = NP.load(file.name).item()
             self.shSpectr.LoadFromDict(dictSpectr)
             self.UpdateControlWidgets()
@@ -364,10 +368,11 @@ class ControlWidget(object):
             options = {}
             options['filetypes'] = [('NPY', '.npy')] #, ('json', '.json')
             options['defaultextension'] = '.npy'
-            options['initialfile'] = 'mySpectr'
+            options['initialfile'] = self.spName
             options['title'] = 'Choose file name'
             file = filedialog.asksaveasfile(**options)
             if file is None: return
+            self.spName = file.name[:(file.name.index('.'))]
             NP.save(file.name, self.shSpectr.Spectr2Dict()) 
             file.close()
 
@@ -376,12 +381,11 @@ class ControlWidget(object):
             options['filetypes'] = [('png', '.png'), ('pdf', '.pdf'), ('svg', '.svg')] #png, pdf, ps, eps, svg  # [('all files', '.*'), ('text files', '.txt')]
             options['defaultextension'] = '.png'
             #options['initialdir'] = 'C:\\'
-            options['initialfile'] = 'mySpectr' + str(self.shSpectr.iSpectr) + '.png'
+            options['initialfile'] = self.spName + '.png'
             #options['parent'] = root
             options['title'] = 'Choose file name'
             
             file = filedialog.asksaveasfile(**options)
-            #filename = filedialog.asksaveasfilename(**options) ## defaultextension, filetypes, initialdir, initialfile, multiple, message, parent, title
             if file is None: return
             ftype = file.name[(file.name.index('.')+1):]
             fig = self.shSpectr.fig
@@ -404,13 +408,14 @@ class ControlWidget(object):
         fm.add_command(label="Exit", command=_quit)
         menuSpectr.add_cascade(label="Spectr", menu=fm)
          
-        hm = tk.Menu(menuSpectr, tearoff=0) # помощь
-        hm.add_command(label="Help")
-        hm.add_command(label="About") 
-        menuSpectr.add_cascade(label="Help", menu=hm)
+        #hm = tk.Menu(menuSpectr, tearoff=0) # помощь
+        #hm.add_command(label="Help")
+        #hm.add_command(label="About") 
+        #menuSpectr.add_cascade(label="Help", menu=hm)
 
     def __init__(self, root, shSpectr):
         self.shSpectr = shSpectr
+        self.spName = 'mySpectr'
         self.root = root 
         
         ## Полотно для вывода
@@ -435,12 +440,13 @@ def main(title):
 
     tk.mainloop()
 
-main("Spectroscope 2D (v0.33)")
+main("Spectroscope 2D (v0.34)")
 
 # TODO:
 # * Управление релевантностью элементов управления
 # * Сохранение/восстановление контекста
 # * Добавить базы - 3, 5, 7, 8. 
 # * Использовать произвольную конфигурацию точек на плоскости, текущий спектр как базу.
+# * Изменение формулы на лету
 # * Анимация с сохранением в гифку. Генерация случайного. 
 # * Сдвиг палитры. Если анимировать, то мозаики начнут играть цветом.
