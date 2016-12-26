@@ -97,7 +97,7 @@ class DataSpectr(object):
         # Добавление возмущения к исходным данным
         # В матричном виде ругается на деление на ноль при отрицательных степенях из-за нулевой диагонали.
         size = len(self.mR2)
-        weight = self.distortion
+        weight = self.distortion/(self.Size**2)
         mRD = NP.zeros((size, size))
         lr = range(size)
         for i in lr:
@@ -224,11 +224,12 @@ class ShowSpectr(DataSpectr):
         if self.useVectorColor:
             vColor = self.vColor
         
+        if self.iSpectr >= self.numSp2 - self.NumPlots:
+            self.iSpectr = numSp2 - self.NumPlots 
+        if self.iSpectr < 0: self.iSpectr = 0
         iSp = self.iSpectr
-        if iSp < 0: return
         
         for i in range(self.NumPlots):
-            if iSp + i >= len(self.vDataX): break  
             self.UpdateSpectr(self.ax[i], self.vDataX[iSp + i], self.vDataY[iSp + i], vSize, vColor) 
 
     def ChangeIndex(self, val=0):
@@ -260,10 +261,6 @@ class ShowSpectr(DataSpectr):
         elif self.iColor > maxIndex: self.iColor = maxIndex  
         self.vColor = self.vDataZ[self.iColor]
 
-    def indUpdColor(self, val=0):
-        self.SetColor(int(float(val)))
-        self.ShowSp()
-
     def SetAlpha(self, val=0):
         self.alpha = val
         self.ShowSp()
@@ -288,7 +285,7 @@ class ShowSpectr(DataSpectr):
             
     def dictDefaultValues(self):
         return {'Symm': 6, 'Size': 10, 'error': 0.00001,
-                'distortion': -0.04, 'distortionRange': [-0.06, 0.06], 'degree': 1, 'degreeRange': [0.01, 2.01],
+                'distortion': -2., 'distortionRange': [-2., 2.], 'degree': 1, 'degreeRange': [0.01, 2.01],
                 'iSpectr': 0, 'iColor': 1, 'iMarksize': 1,
                 'NumPlots': 1, 'PlotType': 'Points',
                 'useMask': False, 'iMask': 0, 'inverseMask': False, 'MaskFunction': 'Std',

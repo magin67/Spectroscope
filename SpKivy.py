@@ -3,23 +3,26 @@
 """ Визуализация спектров. Управление
 Created on 20.11.2016, @author: dmagin
 """
-import numpy as NP
+import numpy as NP # for file operations
 
 import SpectrData as SD
-import Geometry as Geo
+import Geometry as Geo # for norm function Val2Val()
 
-import tkinter as tk
-from tkinter import ttk
-import tkinter.filedialog as filedialog 
- 
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg #, NavigationToolbar2TkAgg
+#from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg #, NavigationToolbar2TkAgg
 
+import kivy
+kivy.require('1.0.6') # replace with your current kivy version !
+
+from kivy.app import App
+from kivy.uix.label import Label
+
+''' tk
 def PlaceWidget(wd, row, col=0, colspan=1, stick='wn'):
     wd.grid(row=row, column=col, columnspan=colspan, sticky=stick)
     return row + col + (colspan - 1)
 
 class ControlWidget(object):
-    ''' Размещение виджетов '''
+    # Размещение виджетов
     def AddLabel(self, row, text = "", fg = "blue", colsp=2):
         frSpectr = ttk.Label(self.frControl, text=text, foreground=fg)
         return PlaceWidget(frSpectr, row, colspan=colsp)
@@ -428,20 +431,15 @@ class ControlWidget(object):
             
         self.UpdateControlWidgets()
         self.shSpectr.ShowSp()
+'''
 
-def main(title):
-    # Основное тело
-    root = tk.Tk()
-    root.wm_title(title)
-    root.rowconfigure(0, weight=1)
-    root.columnconfigure(0, weight=1)
+class MyApp(App):
 
-    shSpectr = SD.ShowSpectr()
-    ctrWidgets = ControlWidget(root, shSpectr)
+    def build(self):
+        return Label(text="Spectroscope 2D (v0.34)")
 
-    tk.mainloop()
-
-main("Spectroscope 2D (v0.34)")
+if __name__ == '__main__':
+    MyApp().run()
 
 # TODO:
 # * Управление релевантностью элементов управления
