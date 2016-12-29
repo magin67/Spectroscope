@@ -173,12 +173,10 @@ class ShowSpectr(DataSpectr):
         '''Инициализация холста'''
         if ini:
             self.fig = plt.figure(facecolor='white') #
-            plt.subplots_adjust(left=0.0, right=1.0, bottom=0, top=1.0, wspace = 0.1, hspace = 0.1)
+            plt.subplots_adjust(left=0.0, right=1.0, bottom=0., top=0.97, wspace = 0.05, hspace = 0.05)
         self.SetPlots()
         #fig, axes = plt.subplots(ncols=2, nrows=2) #,, sharex=sharex, sharey=sharey, subplot_kw=kw kw={'xticks': [], 'yticks': []} squeeze=True,   
         #self.ax.set_projection('lambert')
-        #self.ax.set_autoscale_on(True)
-        #self.ax.autoscale_view(tight=None, scalex=True, scaley=True)
         
     def getMask(self, fmask, bmask=True):
         # Mask to hide triangles
@@ -186,10 +184,12 @@ class ShowSpectr(DataSpectr):
         lim = Geo.Val2Val(maxlim - self.iMask, [0, maxlim], [min(fmask), max(fmask)])
         return NP.where(fmask > lim, not bmask, bmask)
 
-    def UpdateSpectr(self, ax, vX, vY, vSize, vColor):
+    def UpdateSpectr(self, ax, vX, vY, vSize, vColor, title=''):
         #self.fig.clear()
-        ax.clear()
-        ax.axison = False
+        #ax.clear()
+        #ax.axison = False
+        #ax.set_autoscale_on(True)
+        ax.autoscale_view(tight=None, scalex=True, scaley=True)
         cmap = self.cmap
         if self.inverseColor:
             cmap = cmap + "_r"
@@ -209,6 +209,9 @@ class ShowSpectr(DataSpectr):
                 #ax.triplot(triang, marker=self.mark_style, ms=2**(self.msize), markerfacecolor='blue', linestyle='-', alpha=self.alpha) # color=vColor, cmap=self.cmap
             elif self.PlotType == 'Mosaic': # 'Web' and 'Mosaic' can be shown together 
                 ax.tripcolor(triang, self.vColor, shading='flat', cmap=cmap, alpha=self.alpha) #shading='gouraud' 
+
+        if self.ShowTitle:
+            ax.set_title(title, fontsize=11)
         
         ax.figure.canvas.draw()
 
@@ -225,12 +228,17 @@ class ShowSpectr(DataSpectr):
             vColor = self.vColor
         
         if self.iSpectr >= self.numSp2 - self.NumPlots:
-            self.iSpectr = numSp2 - self.NumPlots 
+            self.iSpectr = self.numSp2 - self.NumPlots 
         if self.iSpectr < 0: self.iSpectr = 0
-        iSp = self.iSpectr
-        
+
         for i in range(self.NumPlots):
-            self.UpdateSpectr(self.ax[i], self.vDataX[iSp + i], self.vDataY[iSp + i], vSize, vColor) 
+            cIndex = self.iSpectr + i
+            ax = self.ax[i]
+            ax.clear()
+            ax.axison = False
+            if cIndex >= len(self.vIndex): continue
+            title = str(self.vIndex[cIndex]) + ':' + str(round(self.vS[cIndex], 3))
+            self.UpdateSpectr(ax, self.vDataX[cIndex], self.vDataY[cIndex], vSize, vColor, title) 
 
     def ChangeIndex(self, val=0):
         self.iSpectr = val
@@ -287,7 +295,7 @@ class ShowSpectr(DataSpectr):
         return {'Symm': 6, 'Size': 10, 'error': 0.00001,
                 'distortion': -2., 'distortionRange': [-2., 2.], 'degree': 1, 'degreeRange': [0.01, 2.01],
                 'iSpectr': 0, 'iColor': 1, 'iMarksize': 1,
-                'NumPlots': 1, 'PlotType': 'Points',
+                'NumPlots': 1, 'PlotType': 'Points', 'ShowTitle': False,
                 'useMask': False, 'iMask': 0, 'inverseMask': False, 'MaskFunction': 'Std',
                 'cmap': 'hsv', 'inverseColor': False, 'useVectorColor': False, 'alpha': 0.5,
                 'msize': 2, 'mark_style': 'o', 'useVectorMarksize': False, 'inverseMarksize': False, 'MarksizeRange': [1, 10],

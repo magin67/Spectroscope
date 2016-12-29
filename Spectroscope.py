@@ -25,8 +25,18 @@ class ControlWidget(object):
         return PlaceWidget(frSpectr, row, colspan=colsp)
 
     def SetIndexLabel(self):
-        iSpectr = self.shSpectr.iSpectr
-        self.lblSpIndex.configure(text="Index: " + str(iSpectr+1) + '/' + str(self.shSpectr.numSp2))
+        iSpectr = self.shSpectr.iSpectr + 1
+        sIndSp = str(iSpectr)
+        if self.shSpectr.NumPlots > 1:
+            sIndSp = str(iSpectr) + '-' + str(iSpectr + self.shSpectr.NumPlots - 1)  
+        self.lblSpIndex.configure(text="Index: " + sIndSp + '/' + str(self.shSpectr.numSp2))
+
+    def toIndex(self):
+        #return self.scIndex.configure(to=int(self.shSpectr.numSp2-self.shSpectr.NumPlots))
+        toIndex = int(self.shSpectr.numSp2/self.shSpectr.NumPlots)
+        if self.shSpectr.numSp2%self.shSpectr.NumPlots == 0:
+            toIndex -= 1  
+        return toIndex
     
     def SetBaseWidgets(self, rowControl):
         ## База (форма, размер, индекс) спектра
@@ -34,9 +44,9 @@ class ControlWidget(object):
             self.lblSpSize.configure(text="Order: " + str(self.shSpectr.Size) + ', ' + str(self.shSpectr.numSp + 1))
 
         def SetSpParameters():
-            self.scIndex.configure(to=int(self.shSpectr.numSp2-self.shSpectr.NumPlots)) #, value=0
-            self.scVMarksize.configure(to=int(self.shSpectr.numZ-1)) #, value=0
-            self.scColor.configure(to=int(self.shSpectr.numZ-1)) #, value=0
+            self.scIndex.configure(to=self.toIndex())
+            self.scVMarksize.configure(to=int(self.shSpectr.numZ-1))
+            self.scColor.configure(to=int(self.shSpectr.numZ-1))
             SetSizeLabel()
             self.SetIndexLabel()
         
@@ -53,7 +63,7 @@ class ControlWidget(object):
                         
         def ChangeIndex(val):
             ind = int(float(val))
-            self.shSpectr.ChangeIndex(ind)
+            self.shSpectr.ChangeIndex(ind*self.shSpectr.NumPlots)
             self.SetIndexLabel()
     
         rowControl = self.AddLabel(rowControl, "Base")
@@ -76,7 +86,7 @@ class ControlWidget(object):
 
         self.lblSpIndex = ttk.Label(self.frControl) #, text="Index: 0"
         PlaceWidget(self.lblSpIndex, rowControl)
-        self.scIndex = ttk.Scale(self.frControl, orient='horizontal', length=self.colWidth2, from_=0, to=self.shSpectr.numSp2-self.shSpectr.NumPlots, value=self.shSpectr.iSpectr, command=ChangeIndex) #tickinterval=5, , resolution=5
+        self.scIndex = ttk.Scale(self.frControl, orient='horizontal', length=self.colWidth2, from_=0, to=self.toIndex(), value=int(self.shSpectr.iSpectr/self.shSpectr.NumPlots), command=ChangeIndex)
         rowControl = PlaceWidget(self.scIndex, rowControl, col=0, colspan=2, stick='ne')
         self.SetIndexLabel()
          
@@ -86,10 +96,15 @@ class ControlWidget(object):
         ## Количество рисунков (1, 4, 9)
         def SetNumPlots():
             self.shSpectr.NumPlots = NumPlots.get()
-            self.scIndex.configure(to=int(self.shSpectr.numSp2-self.shSpectr.NumPlots)) #, value=0
+            self.scIndex.configure(to=self.toIndex(), value=int(self.shSpectr.iSpectr/self.shSpectr.NumPlots))
+            self.SetIndexLabel()
             self.shSpectr.SetPlots()
             self.shSpectr.ShowSp()
             self.SetIndexLabel()
+            
+        def ChkShowTitle():
+            self.shSpectr.ShowTitle = showTitle.get()
+            self.shSpectr.ShowSp()
             
         self.AddLabel(rowControl, "Num of plots      ", colsp=1)
     
@@ -102,8 +117,13 @@ class ControlWidget(object):
         PlaceWidget(self.NumPlots1, rowControl, col=1, stick='w')
         PlaceWidget(self.NumPlots2, rowControl, col=1, stick='n')
         rowControl = PlaceWidget(self.NumPlots4, rowControl, col=1, stick='e')
+        
+        showTitle = tk.BooleanVar()
+        showTitle.set(self.shSpectr.ShowTitle)
+        self.chkshowTitle = ttk.Checkbutton(self.frControl, variable=showTitle, text="Show parameters", onvalue=True, offvalue=False, command=ChkShowTitle)
+        rowControl = PlaceWidget(self.chkshowTitle, rowControl, col=1, stick='w') 
     
-        return self.AddLabel(rowControl)
+        return rowControl #self.AddLabel(rowControl)
 
     def SetPlotWidgets(self, rowControl):
         ## Тип рисунка
@@ -116,12 +136,12 @@ class ControlWidget(object):
         PlotType = tk.StringVar(self.frControl)
         PlotType.set(self.shSpectr.PlotType)
         self.rbPoints = ttk.Radiobutton(self.frControl, text="Points", variable=PlotType, value='Points', command=SetPlotType)
-        self.rbMosaic = ttk.Radiobutton(self.frControl, text="Mosaic", variable=PlotType, value='Mosaic', command=SetPlotType)
         self.rbWeb = ttk.Radiobutton(self.frControl, text="Web", variable=PlotType, value='Web', command=SetPlotType)
+        self.rbMosaic = ttk.Radiobutton(self.frControl, text="Mosaic", variable=PlotType, value='Mosaic', command=SetPlotType)
     
         PlaceWidget(self.rbPoints, rowControl, col=0, stick='w')
-        PlaceWidget(self.rbMosaic, rowControl, col=1, stick='w')
-        rowControl = PlaceWidget(self.rbWeb, rowControl, col=1, stick='e')
+        PlaceWidget(self.rbWeb, rowControl, col=1, stick='w')
+        rowControl = PlaceWidget(self.rbMosaic, rowControl, col=1, stick='e')
         return self.AddLabel(rowControl)
 
     def SetFunctionWidgets(self, rowControl):
@@ -231,7 +251,7 @@ class ControlWidget(object):
     def SetMarkerWidgets(self, rowControl):
         ## Markers
         def ChangeMarkform(val='o'):
-            self.shSpectr.mark_style = dicMarkStyle()[val]
+            self.shSpectr.mark_style = SD.dicMarkStyle()[val]
             self.shSpectr.ShowSp()
 
         def SetMarksizeLabel():
@@ -245,7 +265,7 @@ class ControlWidget(object):
             ms = float(val)
             if not ini:
                 self.shSpectr.SetMarksize(ms)
-            self.chkMarkSize.configure(text="Vector: " + str(int(ms+3)))
+            self.chkMarkSize.configure(text="Vector: " + str(int(ms+1)))
     
         def CheckMarksize():
             self.shSpectr.useVectorMarksize = useVectorMarksize.get()
