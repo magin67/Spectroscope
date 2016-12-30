@@ -95,7 +95,8 @@ class DataSpectr(object):
     
     def SetFunction(self):
         # Добавление возмущения к исходным данным
-        # В матричном виде ругается на деление на ноль при отрицательных степенях из-за нулевой диагонали.
+        # F(R2) = w*Rd + 1/Rd, где w = dist/n^2, Rd = R2^degree
+        # (в матричном виде ругается на деление на ноль при отрицательных степенях из-за нулевой диагонали)
         size = len(self.mR2)
         weight = self.distortion/(self.Size**2)
         mRD = NP.zeros((size, size))
@@ -168,6 +169,7 @@ class ShowSpectr(DataSpectr):
             ax.set_aspect('equal') #, 'datalim'
             ax.axison = False
             self.ax.append(ax) 
+        #self.ax.set_projection('lambert')
     
     def IniCanvas(self, ini=True):
         '''Инициализация холста'''
@@ -175,8 +177,6 @@ class ShowSpectr(DataSpectr):
             self.fig = plt.figure(facecolor='white') #
             plt.subplots_adjust(left=0.0, right=1.0, bottom=0., top=0.97, wspace = 0.05, hspace = 0.05)
         self.SetPlots()
-        #fig, axes = plt.subplots(ncols=2, nrows=2) #,, sharex=sharex, sharey=sharey, subplot_kw=kw kw={'xticks': [], 'yticks': []} squeeze=True,   
-        #self.ax.set_projection('lambert')
         
     def getMask(self, fmask, bmask=True):
         # Mask to hide triangles
@@ -185,10 +185,6 @@ class ShowSpectr(DataSpectr):
         return NP.where(fmask > lim, not bmask, bmask)
 
     def UpdateSpectr(self, ax, vX, vY, vSize, vColor, title=''):
-        #self.fig.clear()
-        #ax.clear()
-        #ax.axison = False
-        #ax.set_autoscale_on(True)
         ax.autoscale_view(tight=None, scalex=True, scaley=True)
         cmap = self.cmap
         if self.inverseColor:
