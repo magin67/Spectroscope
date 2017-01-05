@@ -79,26 +79,31 @@ class DataSpectr(object):
          
         curS = sVal[0],
         NumDims = len(sVal)
+        self.numSp = NumDims - 1 # Всего уровней
+        self.numSp2 = 0 # Вырожденных уровней
         for i in range(1, NumDims):
             sV = sVal[i]
             if abs(sV) < 2*self.error: continue # исключаем шум около ноля
-            if abs(sV - curS) < self.error:
+            if abs(sV - curS) < self.error: # вырожденный уровень
                 self.vIndex.append(i-1)
                 self.vS.append(sV)
                 vX, vY, cL = Geo.RotateData(mVector[i], mVector[i-1])
                 self.vDataX.append(vX)
                 self.vDataY.append(vY)
                 i += 1
+                self.numSp2 += 1
             else:
                 self.vDataZ.append(mVector[i-1]) #-1
             curS = sV
     
+        self.numZ = self.numSp - 2*self.numSp2 # Количество невырожденных
+   
     def SetFunction(self):
         # Добавление возмущения к исходным данным
         # F(R2) = w*Rd + 1/Rd, где w = dist/n^2, Rd = R2^degree
         # (в матричном виде ругается на деление на ноль при отрицательных степенях из-за нулевой диагонали)
         size = len(self.mR2)
-        weight = self.distortion/(self.Size**2)
+        weight = self.distortion**3/(self.Size**2)
         mRD = NP.zeros((size, size))
         lr = range(size)
         for i in lr:
@@ -115,41 +120,65 @@ class DataSpectr(object):
         sG, vG = LA.eigh(mG)
         vG = NP.transpose(vG)
         self.Spectr2Projections(sG, vG)
+        #print(sG)
 
     def CalcNumOfSpectrum(self):
-        if self.Symm == 4:
+        # Теоретические значения
+        if self.BaseSet == 'Hex':
+            NumSp = 3*self.Size*(self.Size-1)
+            NumSpDeg = NumSp/3
+        elif self.BaseSet == 'Square':
             NumSp = self.Size*self.Size
             NumSpDeg = (NumSp-NumSp%2)/4
             NumSp -= 1     
-        elif self.Symm == 6:
-            NumSp = 3*self.Size*(self.Size-1)
-            NumSpDeg = NumSp/3
         else:
             NumSp = Size*Size
             NumSpDeg = int(NumSp/Symm)
         
         self.numSp, self.numSp2 = int(NumSp), int(NumSpDeg) 
         self.numZ = self.numSp - 2*self.numSp2 # Количество невырожденных спектров
+
+    def BaseSets(self):
+        return ['Hex', 'Square', 'Hex border', 'Square border', 'Hex star', 'Square star', 'Circle']
         
     def SetPoints(self):
         '''Набор базовых точек'''
-        #if self.Symm == 3:
-            #self.vSet = Geo.vSetTri(size=[self.Size, self.Size])
-        if self.Symm == 4:
-            self.vSet = Geo.mSet2(self.Size, self.Size) # Квадратная сетка
-        elif self.Symm == 6: # Гексагональная сетка
+        if self.BaseSet == 'Hex': # Гексагональная сетка
             self.vSet = Geo.vSetHex(size=[self.Size, self.Size])
+        
+        elif self.BaseSet == 'Square':
+            self.vSet = Geo.mSet2(self.Size, self.Size) # Квадратная сетка
+
+        elif self.BaseSet == 'Hex border':
+            self.vSet = Geo.mSetRegular(nPoints=6, r = self.Size/4., div=self.Size-2, withZero=False) #, accur=10
+            #print(self.vSet)
+
+        elif self.BaseSet == 'Square border':
+            self.vSet = Geo.mSetRegular(nPoints=4, r = self.Size/4., div=self.Size-2, withZero=False) #, accur=10
+            #self.vSet = Geo.mSetSquareBorder(self.Size)
+
+        elif self.BaseSet == 'Hex star':
+            self.vSet = Geo.mSetRegular(nPoints=6, mult=self.Size, withZero=True)
+
+        elif self.BaseSet == 'Square star':
+            self.vSet = Geo.mSetRegular(nPoints=4, mult=self.Size, withZero=True)
+
+        elif self.BaseSet == 'Circle':
+            self.vSet = Geo.mSetRegular(nPoints=self.Size, r = self.Size/4.)
+
         else:
-            self.vSet = Geo.mSetRegular(nPoints=self.Symm, mult=self.Size, withZero=True, accur=7)
+            self.vSet = []
+            #self.vSet = Geo.mSetRegular(nPoints=self.Symm, mult=self.Size, withZero=True, accur=7)
+            #self.vSet = Geo.vSetTri(size=[self.Size, self.Size])
 
     def SetSpectr(self):
         self.SetPoints()
         self.mR2 = Geo.mSetToD2(self.vSet) # Получили матрицу квадратов расстояний
-        self.CalcNumOfSpectrum()
+        #self.CalcNumOfSpectrum()
         self.SetSpectrData() 
 
-    def __init__(self, Symm=4, Size=4, distortion=-0.04, degree=1, error=0.00001):
-        self.Symm = Symm
+    def __init__(self, BaseSet='Hex', Size=4, distortion=-0.04, degree=1, error=0.00001):
+        self.BaseSet = BaseSet
         self.Size = Size 
         self.distortion = distortion
         self.degree = degree
@@ -288,7 +317,8 @@ class ShowSpectr(DataSpectr):
         self.ShowSp()
             
     def dictDefaultValues(self):
-        return {'Symm': 6, 'Size': 10, 'error': 0.00001,
+        return {'BaseSet': 'Hex',  #'Symm': 6, 
+                'Size': 10, 'SizeRange': [2, 30], 'error': 0.00001,
                 'distortion': -2., 'distortionRange': [-2., 2.], 'degree': 1, 'degreeRange': [0.01, 2.01],
                 'iSpectr': 0, 'iColor': 1, 'iMarksize': 1,
                 'NumPlots': 1, 'PlotType': 'Points', 'ShowTitle': False,
@@ -309,7 +339,7 @@ class ShowSpectr(DataSpectr):
         if Dict is not None:
             dictSp.update(Dict)
         
-        DataSpectr.__init__(self, Symm=dictSp['Symm'], Size=dictSp['Size'], distortion=dictSp['distortion'], degree=dictSp['degree'], error=dictSp['error'])
+        DataSpectr.__init__(self, BaseSet=dictSp['BaseSet'], Size=dictSp['Size'], distortion=dictSp['distortion'], degree=dictSp['degree'], error=dictSp['error'])
         for key, value in dictSp.items():
             try: self.__setattr__(key, value)
             except: print('LoadFromDict(): invalid attribute name: ' + key)

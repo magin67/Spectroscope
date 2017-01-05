@@ -129,7 +129,7 @@ def mSet3(Length1, Length2 = 1, Length3 = 1):
                 mSet.append((x, y, z))
     return mSet
 
-def mSetRegular(nPoints = 3, r = 1., cc = [0, 0, 0], mult = 1, withZero = False, accur=8):
+def mSetRegular(nPoints = 3, r = 1., cc = [0, 0, 0], mult = 1, div = 0, withZero = False, accur=8):
     # Координаты правильных многоугольников
     #    nPoints - количество вершин,
     #    r - внешний радиус
@@ -138,15 +138,26 @@ def mSetRegular(nPoints = 3, r = 1., cc = [0, 0, 0], mult = 1, withZero = False,
     mSet = []
     xc, yc, zc = cc[0], cc[1], cc[2]
     fi = 2*NP.pi/float(nPoints)
-    for i in range(nPoints):
-        cr = r
-        for m in range(mult):
+    cTo = tuple(cc)
+    cr = 0 
+    for m in range(mult):
+        cr += r
+        for i in range(nPoints+1):
             x = round(xc + cr*NP.cos(fi*i), accur)
             y = round(yc + cr*NP.sin(fi*i), accur)
-            mSet.append((x, y, zc))
-            cr += r
+            cFrom = cTo
+            cTo = (x, y, zc)
+            if i != nPoints: 
+                mSet.append(cTo)
+            if div > 0 and i > 0: # Разбиваем линию между двумя точками
+                #cFrom, cTo = mSet[len(mSet)-2], mSet[len(mSet)-1]
+                dx, dy = (cTo[0] - cFrom[0])/(div+1), (cTo[1] - cFrom[1])/(div+1) 
+                for j in range(div):
+                    xd = round(cFrom[0] + (j+1)*dx, accur)   
+                    yd = round(cFrom[1] + (j+1)*dy, accur)   
+                    mSet.append((xd, yd, zc))
 
-    if withZero: mSet.append((0, 0, 0))
+    if withZero: mSet.append(tuple(cc))
     return mSet
 
 def mSetCross(N = 2, Length = 1., D = 2):
@@ -166,6 +177,17 @@ def mSetCross(N = 2, Length = 1., D = 2):
         if D > 2: # трехмерный
             mSet.append((0, 0, i*a))
             mSet.append((0, 0, -i*a))
+
+    return mSet
+
+def mSetSquareBorder(Size = 1):
+    # Набор координат узлов границы квадрата
+    mSet = []
+    for i in range(Size-1):
+        mSet.append((0, i))
+        mSet.append((i, Size-1))
+        mSet.append((Size-1, Size-1-i))
+        mSet.append((Size-1-i, 0))
 
     return mSet
 
