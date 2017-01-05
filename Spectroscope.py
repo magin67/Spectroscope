@@ -69,7 +69,7 @@ class ControlWidget(object):
 
         vBaseSet = self.shSpectr.BaseSets()
         sBaseSet = tk.StringVar(self.frControl)
-        self.omBaseSet = ttk.OptionMenu(self.frControl, sBaseSet, 'Hex', *vBaseSet, command=ChangeBaseSet)  
+        self.omBaseSet = ttk.OptionMenu(self.frControl, sBaseSet, self.shSpectr.BaseSet, *vBaseSet, command=ChangeBaseSet)  
         rowControl = PlaceWidget(self.omBaseSet, rowControl, col=1, stick='wn') 
 
         self.lblSpSize = ttk.Label(self.frControl)
@@ -99,10 +99,6 @@ class ControlWidget(object):
             self.shSpectr.ShowSp()
             self.SetIndexLabel()
             
-        def ChkShowTitle():
-            self.shSpectr.ShowTitle = showTitle.get()
-            self.shSpectr.ShowSp()
-            
         self.AddLabel(rowControl, "Num of plots      ", colsp=1)
     
         NumPlots = tk.IntVar(self.frControl)
@@ -115,31 +111,33 @@ class ControlWidget(object):
         PlaceWidget(self.NumPlots2, rowControl, col=1, stick='n')
         rowControl = PlaceWidget(self.NumPlots4, rowControl, col=1, stick='e')
         
-        showTitle = tk.BooleanVar()
-        showTitle.set(self.shSpectr.ShowTitle)
-        self.chkshowTitle = ttk.Checkbutton(self.frControl, variable=showTitle, text="Show parameters", onvalue=True, offvalue=False, command=ChkShowTitle)
-        rowControl = PlaceWidget(self.chkshowTitle, rowControl, col=1, stick='w') 
-    
-        return rowControl #self.AddLabel(rowControl)
+        return self.AddLabel(rowControl)
+        #return rowControl
 
     def SetPlotWidgets(self, rowControl):
         ## Тип рисунка
-        def SetPlotType():
-            self.shSpectr.PlotType = PlotType.get()
+        def SetPlotType(val):
+            self.shSpectr.PlotType = val
+            self.shSpectr.ShowSp()
+
+        def ChkShowTitle():
+            self.shSpectr.ShowTitle = showTitle.get()
             self.shSpectr.ShowSp()
             
-        rowControl = self.AddLabel(rowControl, "Plot type")
+        rowControl = self.AddLabel(rowControl, "Plot type", colsp=1)
     
-        PlotType = tk.StringVar(self.frControl)
-        PlotType.set(self.shSpectr.PlotType)
-        self.rbPoints = ttk.Radiobutton(self.frControl, text="Points", variable=PlotType, value='Points', command=SetPlotType)
-        self.rbWeb = ttk.Radiobutton(self.frControl, text="Web", variable=PlotType, value='Web', command=SetPlotType)
-        self.rbMosaic = ttk.Radiobutton(self.frControl, text="Mosaic", variable=PlotType, value='Mosaic', command=SetPlotType)
-    
-        PlaceWidget(self.rbPoints, rowControl, col=0, stick='w')
-        PlaceWidget(self.rbWeb, rowControl, col=1, stick='w')
-        rowControl = PlaceWidget(self.rbMosaic, rowControl, col=1, stick='e')
-        return self.AddLabel(rowControl)
+        vPlotTypes = SD.ShowSpectr.PlotTypes() #self.shSpectr
+        sPlotType = tk.StringVar(self.frControl)
+        self.omPlotType = ttk.OptionMenu(self.frControl, sPlotType, self.shSpectr.PlotType, *vPlotTypes, command=SetPlotType)  
+        PlaceWidget(self.omPlotType, rowControl, col=1, stick='wn') 
+
+        showTitle = tk.BooleanVar()
+        showTitle.set(self.shSpectr.ShowTitle)
+        self.chkshowTitle = ttk.Checkbutton(self.frControl, variable=showTitle, text="Titles", onvalue=True, offvalue=False, command=ChkShowTitle)
+        rowControl = PlaceWidget(self.chkshowTitle, rowControl, col=1, stick='e') 
+
+        return rowControl
+        #return self.AddLabel(rowControl)
 
     def SetFunctionWidgets(self, rowControl):
         ## Функция
@@ -160,8 +158,6 @@ class ControlWidget(object):
             SetDegreeLabel()
 
         rowControl = self.AddLabel(rowControl, "Function")
-    
-        #rowControl = self.AddLabel(rowControl, "Distortion", self.lblColor, 1)
 
         self.lblDistortion = ttk.Label(self.frControl)
         PlaceWidget(self.lblDistortion, rowControl)
@@ -197,7 +193,7 @@ class ControlWidget(object):
             
         def SetVColor(val=0, ini=False):
             iColor = int(float(val))
-            self.chkVectorColor.configure(text="Vector: " + str(iColor + 1))
+            self.chkVectorColor.configure(text="Use: " + str(iColor + 1))
             if not ini:
                 self.shSpectr.SetColor(iColor)
                 self.shSpectr.ShowSp()
@@ -262,7 +258,7 @@ class ControlWidget(object):
             ms = float(val)
             if not ini:
                 self.shSpectr.SetMarksize(ms)
-            self.chkMarkSize.configure(text="Vector: " + str(int(ms+1)))
+            self.chkMarkSize.configure(text="Use: " + str(int(ms+1)))
     
         def CheckMarksize():
             self.shSpectr.useVectorMarksize = useVectorMarksize.get()
