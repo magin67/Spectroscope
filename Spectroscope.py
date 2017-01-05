@@ -32,7 +32,6 @@ class ControlWidget(object):
         self.lblSpIndex.configure(text="Index: " + sIndSp + '/' + str(self.shSpectr.numSp2))
 
     def toIndex(self):
-        #return self.scIndex.configure(to=int(self.shSpectr.numSp2-self.shSpectr.NumPlots))
         toIndex = int(self.shSpectr.numSp2/self.shSpectr.NumPlots)
         if self.shSpectr.numSp2%self.shSpectr.NumPlots == 0:
             toIndex -= 1  
@@ -49,9 +48,9 @@ class ControlWidget(object):
             self.scColor.configure(to=int(self.shSpectr.numZ-1))
             SetSizeLabel()
             self.SetIndexLabel()
-        
-        def ChangeSymm():
-            self.shSpectr.Symm=Symm.get()
+
+        def ChangeBaseSet(val):
+            self.shSpectr.BaseSet=val
             self.shSpectr.SetForm()
             SetSpParameters()
 
@@ -66,20 +65,18 @@ class ControlWidget(object):
             self.shSpectr.ChangeIndex(ind*self.shSpectr.NumPlots)
             self.SetIndexLabel()
     
-        rowControl = self.AddLabel(rowControl, "Base")
-        
-        Symm = tk.IntVar()
-        Symm.set(self.shSpectr.Symm)
-        self.rbSymm6 = ttk.Radiobutton(self.frControl, text="Hex", variable=Symm, value=6, command=ChangeSymm)
-        self.rbSymm4 = ttk.Radiobutton(self.frControl, text="Square", variable=Symm, value=4, command=ChangeSymm)
-        rowControl = PlaceWidget(self.rbSymm6, rowControl, col=0, stick='ns')
-        rowControl = PlaceWidget(self.rbSymm4, rowControl, col=1, stick='ns')
-    
+        rowControl = self.AddLabel(rowControl, "Base", colsp=1)
+
+        vBaseSet = self.shSpectr.BaseSets()
+        sBaseSet = tk.StringVar(self.frControl)
+        self.omBaseSet = ttk.OptionMenu(self.frControl, sBaseSet, 'Hex', *vBaseSet, command=ChangeBaseSet)  
+        rowControl = PlaceWidget(self.omBaseSet, rowControl, col=1, stick='wn') 
+
         self.lblSpSize = ttk.Label(self.frControl)
         PlaceWidget(self.lblSpSize, rowControl)
         SetSizeLabel()
         
-        self.scSize = ttk.Scale(self.frControl, orient='horizontal', length=self.colWidth2, from_=2, to=20, value=self.shSpectr.Size, command=ChangeSize)
+        self.scSize = ttk.Scale(self.frControl, orient='horizontal', length=self.colWidth2, from_=self.shSpectr.SizeRange[0], to=self.shSpectr.SizeRange[1], value=self.shSpectr.Size, command=ChangeSize)
         rowControl = PlaceWidget(self.scSize, rowControl, col=1, colspan=1, stick='ne')
         
         rowControl = self.AddLabel(rowControl, "Index", self.lblColor, 1)
