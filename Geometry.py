@@ -14,8 +14,9 @@ def Val2Val(val, rangeFrom = [0, 100], rangeTo=[0, 1]):
 
 def RotateData(vDataX, vDataY):
     # Стабилизация данных относительно осей по первой точке
-    indX = 0 
-    cX, cY = vDataX[indX], vDataY[indX]
+    vR = vDataX*vDataX + vDataY*vDataY  
+    ind = NP.argmax(vR)
+    cX, cY = vDataX[ind], vDataY[ind]
     cL = NP.sqrt(cX*cX + cY*cY)
     if cL == 0: return vDataX, vDataY, cL
     if cX*cY < 0:

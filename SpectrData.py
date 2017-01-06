@@ -138,7 +138,7 @@ class DataSpectr(object):
         self.numZ = self.numSp - 2*self.numSp2 # Количество невырожденных спектров
 
     def BaseSets(self):
-        return ['Hex', 'Square', '6-star', '5-star', '4-star', 'Hex border', 'Square border', 'Circle']
+        return ['Hex', 'Square', '6-star', '5-star', '4-star', '6-border', '4-border', 'Circle']
         
     def SetPoints(self):
         '''Набор базовых точек'''
@@ -157,14 +157,14 @@ class DataSpectr(object):
         elif self.BaseSet == '4-star':
             self.vSet = Geo.mSetRegular(nPoints=4, mult=self.Size, div=self.Size-1, withZero=True) #, accur=10
 
-        elif self.BaseSet == 'Hex border':
-            self.vSet = Geo.mSetRegular(nPoints=6, r = self.Size/4., div=self.Size-2, withZero=False) #, accur=10
+        elif self.BaseSet == '6-border':
+            self.vSet = Geo.mSetRegular(nPoints=6, r = self.Size, div=self.Size-2, withZero=False) #, accur=10
 
-        elif self.BaseSet == 'Square border':
-            self.vSet = Geo.mSetRegular(nPoints=4, r = self.Size/4., div=self.Size-2, withZero=False) #, accur=10
+        elif self.BaseSet == '4-border':
+            self.vSet = Geo.mSetRegular(nPoints=4, r = self.Size, div=self.Size-2, withZero=False) #, accur=10
 
         elif self.BaseSet == 'Circle':
-            self.vSet = Geo.mSetRegular(nPoints=self.Size, r = self.Size/4.)
+            self.vSet = Geo.mSetRegular(nPoints=self.Size, r = self.Size)
 
         else:
             self.vSet = []
