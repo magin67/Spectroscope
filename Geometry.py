@@ -18,10 +18,11 @@ def RotateData(vDataX, vDataY):
     cX, cY = vDataX[indX], vDataY[indX]
     cL = NP.sqrt(cX*cX + cY*cY)
     if cL == 0: return vDataX, vDataY, cL
-    if cX < 0:
-        cosFi, sinFi = -cX/cL, cY/cL
+    if cX*cY < 0:
+        sinFi, cosFi = cX/cL, -cY/cL
     else:
-        cosFi, sinFi = cX/cL, -cY/cL
+        sinFi, cosFi = cX/cL, cY/cL
+
     mRotate = [(cosFi, -sinFi), (sinFi, cosFi)]
     mData = [vDataX, vDataY]
     mResult = NP.dot(mRotate, mData)
@@ -149,7 +150,7 @@ def mSetRegular(nPoints = 3, r = 1., cc = [0, 0, 0], mult = 1, div = 0, withZero
             cTo = (x, y, zc)
             if i != nPoints: 
                 mSet.append(cTo)
-            if div > 0 and i > 0: # Разбиваем линию между двумя точками
+            if m+1 == mult and div > 0 and i > 0: # Разбиваем линию между двумя точками
                 #cFrom, cTo = mSet[len(mSet)-2], mSet[len(mSet)-1]
                 dx, dy = (cTo[0] - cFrom[0])/(div+1), (cTo[1] - cFrom[1])/(div+1) 
                 for j in range(div):

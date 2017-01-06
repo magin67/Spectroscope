@@ -87,9 +87,8 @@ class DataSpectr(object):
             if abs(sV - curS) < self.error: # вырожденный уровень
                 self.vIndex.append(i-1)
                 self.vS.append(sV)
-                vX, vY, cL = Geo.RotateData(mVector[i], mVector[i-1])
-                self.vDataX.append(vX)
-                self.vDataY.append(vY)
+                self.vDataX.append(mVector[i])
+                self.vDataY.append(mVector[i-1])
                 i += 1
                 self.numSp2 += 1
             else:
@@ -100,7 +99,7 @@ class DataSpectr(object):
    
     def SetFunction(self):
         # Добавление возмущения к исходным данным
-        # F(R2) = w*Rd + 1/Rd, где w = dist/n^2, Rd = R2^degree
+        # F(R2) = w*Rd + 1/Rd, где w = dist^3/n^2, Rd = R2^degree
         # (в матричном виде ругается на деление на ноль при отрицательных степенях из-за нулевой диагонали)
         size = len(self.mR2)
         weight = self.distortion**3/(self.Size**2)
@@ -139,7 +138,7 @@ class DataSpectr(object):
         self.numZ = self.numSp - 2*self.numSp2 # Количество невырожденных спектров
 
     def BaseSets(self):
-        return ['Hex', 'Square', 'Hex border', 'Square border', 'Hex star', 'Square star', 'Circle']
+        return ['Hex', 'Square', '6-star', '5-star', '4-star', 'Hex border', 'Square border', 'Circle']
         
     def SetPoints(self):
         '''Набор базовых точек'''
@@ -149,19 +148,20 @@ class DataSpectr(object):
         elif self.BaseSet == 'Square':
             self.vSet = Geo.mSet2(self.Size, self.Size) # Квадратная сетка
 
+        elif self.BaseSet == '6-star':
+            self.vSet = Geo.mSetRegular(nPoints=6, mult=self.Size, div=self.Size-1, withZero=True) #, accur=10
+
+        elif self.BaseSet == '5-star':
+            self.vSet = Geo.mSetRegular(nPoints=5, mult=self.Size, div=self.Size-1, withZero=True) #, accur=10
+
+        elif self.BaseSet == '4-star':
+            self.vSet = Geo.mSetRegular(nPoints=4, mult=self.Size, div=self.Size-1, withZero=True) #, accur=10
+
         elif self.BaseSet == 'Hex border':
             self.vSet = Geo.mSetRegular(nPoints=6, r = self.Size/4., div=self.Size-2, withZero=False) #, accur=10
-            #print(self.vSet)
 
         elif self.BaseSet == 'Square border':
             self.vSet = Geo.mSetRegular(nPoints=4, r = self.Size/4., div=self.Size-2, withZero=False) #, accur=10
-            #self.vSet = Geo.mSetSquareBorder(self.Size)
-
-        elif self.BaseSet == 'Hex star':
-            self.vSet = Geo.mSetRegular(nPoints=6, mult=self.Size, withZero=True)
-
-        elif self.BaseSet == 'Square star':
-            self.vSet = Geo.mSetRegular(nPoints=4, mult=self.Size, withZero=True)
 
         elif self.BaseSet == 'Circle':
             self.vSet = Geo.mSetRegular(nPoints=self.Size, r = self.Size/4.)
@@ -187,6 +187,9 @@ class DataSpectr(object):
 
 class ShowSpectr(DataSpectr):
     '''Визуализация спектров'''
+    def PlotTypes():
+        return ['Points', 'Web', 'Mosaic', 'Contour']
+        
     def SetPlots(self):
         self.fig.clear()
         self.ax = []
@@ -213,11 +216,13 @@ class ShowSpectr(DataSpectr):
         lim = Geo.Val2Val(maxlim - self.iMask, [0, maxlim], [min(fmask), max(fmask)])
         return NP.where(fmask > lim, not bmask, bmask)
 
-    def UpdateSpectr(self, ax, vX, vY, vSize, vColor, title=''):
+    def UpdateSpectr(self, ax, vXs, vYs, vSize, vColor, title=''):
         ax.autoscale_view(tight=None, scalex=True, scaley=True)
         cmap = self.cmap
         if self.inverseColor:
             cmap = cmap + "_r"
+
+        vX, vY, cL = Geo.RotateData(vXs, vYs)
         
         if self.PlotType == 'Points':
             ax.scatter(vX, vY, s=vSize, c=vColor, marker=self.mark_style, cmap=cmap, alpha=self.alpha) #, norm=None, vmin=None, vmax=None, linewidths=None, verts=None, edgecolors=None
@@ -232,8 +237,15 @@ class ShowSpectr(DataSpectr):
                 ax.scatter(vX, vY, s=vSize, c=vColor, marker=self.mark_style, cmap=cmap, alpha=self.alpha) #, norm=None, vmin=None, vmax=None, linewidths=None, verts=None, edgecolors=None
                 ax.triplot(triang, marker='', linestyle='-', alpha=self.alpha) # можно выводить узлы одновременно с сеткой
                 #ax.triplot(triang, marker=self.mark_style, ms=2**(self.msize), markerfacecolor='blue', linestyle='-', alpha=self.alpha) # color=vColor, cmap=self.cmap
-            elif self.PlotType == 'Mosaic': # 'Web' and 'Mosaic' can be shown together 
-                ax.tripcolor(triang, self.vColor, shading='flat', cmap=cmap, alpha=self.alpha) #shading='gouraud' 
+            
+            elif self.PlotType == 'Mosaic': 
+                ax.tripcolor(triang, self.vColor, edgecolors='none', cmap=cmap, alpha=self.alpha) #shading='flat'
+
+            elif self.PlotType == 'Contour':
+                if self.useVectorColor: 
+                    ax.tricontour(triang, self.vColor, cmap=cmap, alpha=self.alpha)
+                else:
+                    ax.tricontour(triang, self.vColor, colors='blue', alpha=self.alpha) #'k'
 
         if self.ShowTitle:
             ax.set_title(title, fontsize=11)
@@ -262,7 +274,9 @@ class ShowSpectr(DataSpectr):
             ax.clear()
             ax.axison = False
             if cIndex >= len(self.vIndex): continue
-            title = str(self.vIndex[cIndex]) + ':' + str(round(self.vS[cIndex], 3))
+            spInd = self.vIndex[cIndex]
+            if self.vS[cIndex] < 0: spInd += 1 # Поскольку нулевой уровень исключаем, то отрицательные индексы сдвигаются относительно положительных 
+            title = str(spInd) + ':' + str(round(self.vS[cIndex], 3))
             self.UpdateSpectr(ax, self.vDataX[cIndex], self.vDataY[cIndex], vSize, vColor, title) 
 
     def ChangeIndex(self, val=0):
