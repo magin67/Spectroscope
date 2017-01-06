@@ -454,4 +454,4 @@ def main(title):
 
     tk.mainloop()
 
-main("Spectroscope 2D (v0.34)")
+main("Spectroscope 2D (v0.40)")
