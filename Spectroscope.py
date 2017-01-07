@@ -370,8 +370,10 @@ class ControlWidget(object):
             options['defaultextension'] = '.npy'
             options['title'] = 'Choose file'
             filelist = filedialog.askopenfiles(**options)
-            if filelist is None: return
-            file = filelist[0]
+            try:
+                file = filelist[0]
+            except:
+                return
             self.spName = file.name[:(file.name.index('.'))]
             dictSpectr = NP.load(file.name).item()
             self.shSpectr.LoadFromDict(dictSpectr)
@@ -407,8 +409,8 @@ class ControlWidget(object):
             file.close()
 
         def _quit():
-            root.quit()     # stops mainloop
-            root.destroy()  # this is necessary on Windows
+            self.root.quit() # stops mainloop, add 'self.' to avoid an error
+            self.root.destroy() # this is necessary on Windows, add 'self.' to avoid an error
         
         menuSpectr = tk.Menu(self.root)
         self.root.config(menu=menuSpectr)
