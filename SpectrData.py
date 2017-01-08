@@ -79,16 +79,16 @@ class DataSpectr(object):
          
         NumDims = len(sVal)
         self.numSp = NumDims - 1 # Всего уровней
-        self.numSp2 = 0 # Вырожденных уровней
+        self.numSp2, self.numZ = 0, 0 # Вырожденных и невырожденных уровней
         bDegen = False # Признак вырожденного уровня 
-
         for i in range(0, NumDims-1):
             if bDegen:
                 bDegen = False
                 continue
             sV = sVal[i]
-            if abs(sV) < 2*self.error: continue # исключаем нулевой уровень Должен быть один
-            if abs(sV - sVal[i+1]) < self.error: # вырожденный уровень
+            if abs(sV) < self.error:
+                continue # исключаем нулевой уровень Должен быть один
+            if abs((sV - sVal[i+1])/sV) < self.error: # вырожденный уровень
                 self.vIndex.append(i)
                 self.vDataX.append(mVector[i])
                 self.vDataY.append(mVector[i+1])
@@ -98,10 +98,10 @@ class DataSpectr(object):
             else:
                 bDegen = False
                 self.vDataZ.append(mVector[i])
+                self.numZ += 1
                 if i == NumDims-2: # Последний уровень
                     self.vDataZ.append(mVector[i+1])
-    
-        self.numZ = self.numSp - 2*self.numSp2 # Количество невырожденных
+                    self.numZ += 1
    
     def SetFunction(self):
         # Добавление возмущения к исходным данным
@@ -183,7 +183,7 @@ class DataSpectr(object):
         #self.CalcNumOfSpectrum()
         self.SetSpectrData() 
 
-    def __init__(self, BaseSet='Hex', Size=4, distortion=-0.04, degree=1, error=0.00001):
+    def __init__(self, BaseSet='Hex', Size=4, distortion=-0.04, degree=1, error=0.000001):
         self.BaseSet = BaseSet
         self.Size = Size 
         self.distortion = distortion
@@ -291,6 +291,7 @@ class ShowSpectr(DataSpectr):
 
     def SetVectorMS(self, index=-1):
         maxIndex = self.numZ-1
+        if maxIndex < 0: return 
         if index >= 0: self.iMarksize = index
         if self.iMarksize < 0: self.iMarksize = 0
         elif self.iMarksize > maxIndex: self.iMarksize = maxIndex  
@@ -308,10 +309,11 @@ class ShowSpectr(DataSpectr):
         self.ShowSp()
 
     def SetColor(self, index=0):
-        maxIndex = len(self.vDataZ)-1
+        maxIndex = self.numZ-1
+        if maxIndex < 0: return
         if index >= 0: self.iColor = index
         if self.iColor < 0: self.iColor = 0
-        elif self.iColor > maxIndex: self.iColor = maxIndex  
+        elif self.iColor > maxIndex: self.iColor = maxIndex
         self.vColor = self.vDataZ[self.iColor]
 
     def SetAlpha(self, val=0):
@@ -338,7 +340,7 @@ class ShowSpectr(DataSpectr):
             
     def dictDefaultValues(self):
         return {'BaseSet': 'Hex',  #'Symm': 6, 
-                'Size': 10, 'SizeRange': [2, 30], 'error': 0.00001,
+                'Size': 10, 'SizeRange': [2, 30], 'error': 0.000002,
                 'distortion': -2., 'distortionRange': [-2., 2.], 'degree': 1, 'degreeRange': [0.01, 2.01],
                 'iSpectr': 0, 'iColor': 0, 'iMarksize': 0,
                 'NumPlots': 1, 'PlotType': 'Points', 'ShowTitle': False,

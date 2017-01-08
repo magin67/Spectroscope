@@ -31,6 +31,12 @@ class ControlWidget(object):
             sIndSp = str(iSpectr) + '-' + str(iSpectr + self.shSpectr.NumPlots - 1)  
         self.lblSpIndex.configure(text="Index: " + sIndSp + '/' + str(self.shSpectr.numSp2))
 
+    def SetLabelVectorColor(self):
+        self.chkVectorColor.configure(text="Use: " + str(self.shSpectr.iColor + 1) + '/' + str(self.shSpectr.numZ))
+
+    def SetLabelMSVector(self):
+        self.chkMarkSize.configure(text="Use: " + str(self.shSpectr.iMarksize + 1) + '/' + str(self.shSpectr.numZ))
+
     def toIndex(self):
         toIndex = int(self.shSpectr.numSp2/self.shSpectr.NumPlots)
         if self.shSpectr.numSp2%self.shSpectr.NumPlots == 0:
@@ -48,6 +54,8 @@ class ControlWidget(object):
             self.scColor.configure(to=int(self.shSpectr.numZ-1))
             SetSizeLabel()
             self.SetIndexLabel()
+            self.SetLabelVectorColor()
+            self.SetLabelMSVector()
 
         def ChangeBaseSet(val):
             self.shSpectr.BaseSet=val
@@ -193,10 +201,10 @@ class ControlWidget(object):
             
         def SetVColor(val=0, ini=False):
             iColor = int(float(val))
-            self.chkVectorColor.configure(text="Use: " + str(iColor + 1))
             if not ini:
                 self.shSpectr.SetColor(iColor)
                 self.shSpectr.ShowSp()
+            self.SetLabelVectorColor()
             
         def InverseColor():
             self.shSpectr.inverseColor = inverseColor.get()
@@ -258,7 +266,7 @@ class ControlWidget(object):
             ms = float(val)
             if not ini:
                 self.shSpectr.SetMarksize(ms)
-            self.chkMarkSize.configure(text="Use: " + str(int(ms+1)))
+            self.SetLabelMSVector()
     
         def CheckMarksize():
             self.shSpectr.useVectorMarksize = useVectorMarksize.get()
