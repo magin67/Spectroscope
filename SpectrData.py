@@ -77,23 +77,29 @@ class DataSpectr(object):
         self.vDataX, self.vDataY = [], [] # собственные функции вырожденных спектров
         self.vDataZ = [] # собственные функции невырожденных спектров
          
-        curS = sVal[0],
         NumDims = len(sVal)
         self.numSp = NumDims - 1 # Всего уровней
         self.numSp2 = 0 # Вырожденных уровней
-        for i in range(1, NumDims):
+        bDegen = False # Признак вырожденного уровня 
+
+        for i in range(0, NumDims-1):
+            if bDegen:
+                bDegen = False
+                continue
             sV = sVal[i]
-            if abs(sV) < 2*self.error: continue # исключаем шум около ноля
-            if abs(sV - curS) < self.error: # вырожденный уровень
-                self.vIndex.append(i-1)
-                self.vS.append(sV)
+            if abs(sV) < 2*self.error: continue # исключаем нулевой уровень Должен быть один
+            if abs(sV - sVal[i+1]) < self.error: # вырожденный уровень
+                self.vIndex.append(i)
                 self.vDataX.append(mVector[i])
-                self.vDataY.append(mVector[i-1])
-                i += 1
+                self.vDataY.append(mVector[i+1])
+                self.vS.append(sV)
                 self.numSp2 += 1
+                bDegen = True
             else:
-                self.vDataZ.append(mVector[i-1]) #-1
-            curS = sV
+                bDegen = False
+                self.vDataZ.append(mVector[i])
+                if i == NumDims-2: # Последний уровень
+                    self.vDataZ.append(mVector[i+1])
     
         self.numZ = self.numSp - 2*self.numSp2 # Количество невырожденных
    
@@ -334,7 +340,7 @@ class ShowSpectr(DataSpectr):
         return {'BaseSet': 'Hex',  #'Symm': 6, 
                 'Size': 10, 'SizeRange': [2, 30], 'error': 0.00001,
                 'distortion': -2., 'distortionRange': [-2., 2.], 'degree': 1, 'degreeRange': [0.01, 2.01],
-                'iSpectr': 0, 'iColor': 1, 'iMarksize': 1,
+                'iSpectr': 0, 'iColor': 0, 'iMarksize': 0,
                 'NumPlots': 1, 'PlotType': 'Points', 'ShowTitle': False,
                 'useMask': False, 'iMask': 0, 'inverseMask': False, 'MaskFunction': 'Std',
                 'cmap': 'hsv', 'inverseColor': False, 'useVectorColor': False, 'alpha': 0.5,
